@@ -1,6 +1,7 @@
 ---
 title: Saving costs on data pipelines
 draft: false
+date: '2024-01-11'
 tags:
   - data-engineering
 ---
