@@ -1,11 +1,9 @@
 ---
-
 title: The power of bringing UX to Data
 draft: false
 date: '2024-01-29'
 tags:
   - data
-
 ---
 
 Bringing methodologies and learnings from other disciplines, like UX, can provide high value to Data projects. In this article, I'll go through my recent collaboration with UX Designers, where we worked together in the creation of a dashboard for our Pharmacy Operations team.
