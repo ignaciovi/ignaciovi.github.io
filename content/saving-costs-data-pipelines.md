@@ -6,6 +6,8 @@ tags:
   - data-engineering
 ---
 
+SUMMARY! TLDR
+
 Working in a start-up presents the challenge of providing the highest impact at the lowest cost. Isn't that every company's goal, though? One of my main responsibilities in my day-to-day job is to find that balance. How do I keep adding models and pipelines without dramatically increasing our costs? 
 
 In the last few weeks, I've had to do exactly that. And in this article, I'll present some of the learnings I've had along the way.
