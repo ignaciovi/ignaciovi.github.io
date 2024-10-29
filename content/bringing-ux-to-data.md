@@ -6,8 +6,6 @@ tags:
   - data
 ---
 
-SUMMARY! TLDR
-
 Bringing methodologies and learnings from other disciplines, like UX, can provide high value to Data projects. In this article, I'll go through my recent collaboration with UX Designers, where we worked together in the creation of a dashboard for our Pharmacy Operations team.
 
 We needed to define a set of metrics that helped the PO team to have better visibility of their operations, and understand where should they put their efforts. This is, tracking the time it takes to process orders, identify bottlenecks, track reasons for cancellations, etc.
