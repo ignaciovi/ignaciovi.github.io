@@ -1,6 +1,9 @@
 ---
 title: Airflow tips and practices
 ready: true
+tags:
+  - data-engineering
+  - airflow
 ---
 
 Tips and tricks I'm learning with Airflow.
