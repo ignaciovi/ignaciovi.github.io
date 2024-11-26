@@ -16,7 +16,7 @@ Without further ado, find below the changes I've made to reduce the costs of our
 
 # Identifying heavy queries
 First, I started by identifying the queries that processed the highest number of bytes:
-```
+```sql
 SELECT
  query,
  sum(total_bytes_processed) as total
@@ -38,7 +38,7 @@ In my case, I realised I had a 30 GB audit log table that was ingested and trans
 
 On the DBT side, I also changed the job to run once a day for this table. To do that, I assigned [tags](https://docs.getdbt.com/reference/resource-configs/tags) to those tables that I wanted to run with a lower frequency. I assigned the tag with:
 
-```
+```sql
 {{ config(
     tags='daily'
 ) }}
@@ -57,7 +57,7 @@ I created a CTE that extracted every metric and grouped it by date. Then, at the
 
 Example of transformation:
 
-```
+```sql
 with daily_revenue as (
   select
     date(created_at) as day,
@@ -113,7 +113,7 @@ The audit log table I've mentioned before was being fully ingested and transform
 The change I made was to modify the data ingestion to incremental append (only new data is added).
 Then, on DBT I only transformed audit log records for the last 3 days. I knew that historic audit log records wouldn't change in the future (data is immutable), but I set up 3 days as the date range for ingestion just in case.
 
-```
+```sql
 {% set partitions_to_replace = [
   'timestamp(current_date)',
   'timestamp(date_sub(current_date, interval 1 day))',
