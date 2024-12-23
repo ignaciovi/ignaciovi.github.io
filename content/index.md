@@ -22,4 +22,4 @@ https://maggieappleton.com/garden-history
 https://www.nateliason.com/notes
 https://stephsmith.io/open
 
-Credit to [jackyzha0](https://github.com/jackyzha0) for creating the Quartz repo and inspiring me to create this website. Thanks!
+Credit to [jackyzha0](https://github.com/jackyzha0) for creating the Quartz repo and inspiring me to create this website.
