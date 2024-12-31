@@ -32,5 +32,5 @@ WHERE rn = 1;
 
 # Cross join
  A cross join is a type of join that combines each row from one table with every row from another table, creating a Cartesian product of the rows
- 
+
 ![[cross-join-example.png]]
