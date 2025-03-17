@@ -26,7 +26,6 @@ from table(information_schema.copy_history(TABLE_NAME=>'{db_name}.{schema_name}.
 
 ```
 
- 
 
 ## Terraform Module
 
