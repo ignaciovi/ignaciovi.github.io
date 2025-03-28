@@ -4,10 +4,11 @@ ready: true
 tags:
   - data-engineering
   - dbt
+publish: true
 ---
 In DBT macros, the snippet:
 
-```
+```python
 {% if not execute %} 
     {{ return(False) }} 
 {% endif %}

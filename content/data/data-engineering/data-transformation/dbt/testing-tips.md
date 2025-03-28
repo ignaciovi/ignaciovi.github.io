@@ -1,7 +1,7 @@
 ---
 title: Testing tips
 ready: true
-deployed: true
+publish: true
 tags:
   - data-engineering
   - dbt
@@ -9,7 +9,7 @@ tags:
 
 In some occasions, we have NULL data in DEV environment that is not supposed to be NULL in PROD environment. In these cases, when we want to run a test in one environment but omit it in another (so it doesn't keep failing), we can add the following property to our test
 
-```
+```yaml
 - name: my_table
     description: My description
     data_tests:
@@ -20,3 +20,13 @@ In some occasions, we have NULL data in DEV environment that is not supposed to 
 
 
 Add this to run test only on a given environment
+
+
+---
+
+Use LOGS on macros for better debugging 
+
+```
+{% do log("Using " ~ date_filter ~ " Date Filter", info=true) %}
+```
+

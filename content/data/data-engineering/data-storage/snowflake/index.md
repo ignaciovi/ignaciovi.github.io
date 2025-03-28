@@ -2,9 +2,6 @@
 title: Snowflake notes
 ready: true
 publish: true
-tags:
-  - data-engineering
-  - snowflake
 ---
 # Saving costs and time
 During testing of SQL models in Snowflake, sometimes we want to debug a complex queries with many CTEs involved. For example:

@@ -1,9 +1,9 @@
 ---
 title: Airflow tips and practices
 ready: true
+publish: true
 tags:
   - data-engineering
-  - airflow
 ---
 
 Tips and tricks I'm learning with Airflow.
@@ -18,7 +18,7 @@ https://github.com/aws/aws-mwaa-local-runner
 # Airflow Variables
 Using Airflow variables in top-level Python code for DAGs should be avoided as much as possible, since it yields network calls and database access. See [Top level Python Code](https://airflow.apache.org/docs/apache-airflow/stable/best-practices.html#best-practices-top-level-code).
 
-```
+```python
 from airflow.models import Variable
 from airflow.operators.bash import BashOperator
 from airflow import DAG
@@ -45,7 +45,7 @@ If Airflow Variables must be used in top-level DAG code, then their impact on DA
 
 The alternative approach to defining variables top-level is to call the `Variable.get` inside functions and get the values when the functions are called.
 
-```
+```python
 from airflow.models import Variable
 from airflow.operators.bash import BashOperator
 from airflow import DAG
@@ -92,7 +92,7 @@ If you're using DBT and want to just run one model in production, it's not as ea
 You can have a DAG in production Airflow that runs the ad-hoc model for you
 The DAG allows as input the name of the model and it does a full refresh of the model when you run it.
 
-```
+```python
 ...
 
 with DAG(
@@ -129,3 +129,11 @@ with DAG(
         },
     )
 ```
+
+
+# Running DBT with Airflow
+`BatchOperator` is used to manage AWS Batch jobs, allowing you to submit and monitor batch computing jobs within an Airflow DAG (Directed Acyclic Graph)
+
+AWS Batch uses job queues to manage how jobs are scheduled and the compute resources required. Different job queues can be configured to use different compute environments, each with its own instance types, scaling policies, and other resource management settings.
+
+We can use `BatchOperator` to run DBT with Airflow

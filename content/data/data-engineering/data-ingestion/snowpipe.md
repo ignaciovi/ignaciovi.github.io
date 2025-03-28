@@ -2,7 +2,7 @@
 title: Snowpipe
 date: 2025-01-17
 ready: true
-deployed: true
+publish: true
 tags:
   - data-engineering
   - data-ingestion

@@ -2,7 +2,7 @@
 title: PIP tips
 date: 2024-12-30
 ready: true
-deployed: true
+publish: true
 ---
 ```
 pip install -I -r requirements.txt

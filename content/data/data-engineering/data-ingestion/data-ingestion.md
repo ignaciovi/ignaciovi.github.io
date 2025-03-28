@@ -4,7 +4,7 @@ tags:
   - data-engineering
   - data-ingestion
 ready: true
-deployed: true
+publish: true
 date: 2025-03-17
 ---
 Data ingestion is the process of getting data from A to B. Being:
@@ -34,7 +34,7 @@ Querying data from a database into a data warehouse.
 
 ## Pattern 4: Static Reference Data
 - Small set of static data
-- Data is held as a CSV file (normally). It can be saved as seeds with [[data/data-engineering/dbt/index|DBT]]
+- Data is held as a CSV file (normally). It can be saved as seeds with [[data/data-engineering/data-transformation/dbt/index|DBT]]
 - Refreshed during regular scheduled load process
 
 ## Pattern 5: Third Party Large File Ingestion

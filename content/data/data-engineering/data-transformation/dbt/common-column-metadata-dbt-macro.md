@@ -4,10 +4,12 @@ tags:
   - data-engineering
   - dbt
 ready: true
+date: 2024-11-25
+publish: true
 ---
 In DBT, you might encounter situations where a column contains identical metadata across multiple models. To avoid repetition, you can create a "macro" within your documentation `.yaml` file. Here’s an example of how to do this:
 
-```
+```yml
 common_columns:
 	event_time: &EVENT_TIME
 		name: EVENT_TIME

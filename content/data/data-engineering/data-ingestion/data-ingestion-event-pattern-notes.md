@@ -5,7 +5,7 @@ tags:
   - data-engineering
   - data-ingestion
 ready: true
-deployed: true
+publish: true
 ---
 
 

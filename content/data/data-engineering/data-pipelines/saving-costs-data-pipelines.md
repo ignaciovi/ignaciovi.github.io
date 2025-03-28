@@ -1,9 +1,10 @@
 ---
 title: Saving costs on data pipelines
-draft: false
-date: '2024-01-11'
+date: 2024-01-11
 tags:
   - data-engineering
+publish: true
+ready: true
 ---
 
 Working in a start-up presents the challenge of providing the highest impact at the lowest cost. Isn't that every company's goal, though? One of my main responsibilities in my day-to-day job is to find that balance. How do I keep adding models and pipelines without dramatically increasing our costs? 

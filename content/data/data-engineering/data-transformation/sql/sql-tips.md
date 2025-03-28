@@ -2,7 +2,7 @@
 title: SQL tips
 date: 2024-12-30
 ready: true
-deployed: true
+publish: true
 ---
 
 # Qualify
