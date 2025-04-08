@@ -5,6 +5,7 @@ tags:
   - data-engineering
   - dbt
 publish: true
+date: 2024-11-25
 ---
 In DBT macros, the snippet:
 
