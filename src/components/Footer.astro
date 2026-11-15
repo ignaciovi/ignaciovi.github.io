@@ -1,0 +1,47 @@
+---
+import { SITE } from '../site';
+---
+
+<footer class="site-footer" id="contact">
+	<div class="container inner">
+		<h2>Let’s talk.</h2>
+		<ul class="links">
+			<li><a href={SITE.links.github} rel="me">GitHub</a></li>
+			<li><a href={SITE.links.linkedin} rel="me">LinkedIn</a></li>
+		</ul>
+	</div>
+	<div class="container small muted">
+		<p>© {new Date().getFullYear()} {SITE.name} · {SITE.location}</p>
+	</div>
+</footer>
+
+<style>
+	.site-footer {
+		border-top: 1px solid var(--border);
+		background: var(--surface-2);
+		padding-block: 3rem 1rem;
+		margin-top: 4rem;
+	}
+	.inner {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem 2rem;
+	}
+	h2 {
+		margin: 0;
+	}
+	.links {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+		display: flex;
+		gap: 1.5rem;
+		font-weight: 600;
+	}
+	.small {
+		font-size: 0.85rem;
+		margin-top: 2rem;
+	}
+</style>

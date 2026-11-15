@@ -1,0 +1,114 @@
+---
+import { NAV, SITE } from '../site';
+import ThemeToggle from './ThemeToggle.astro';
+import CVToggle from './CVToggle.astro';
+---
+
+<header class="site-header">
+	<div class="container inner">
+		<a href="/" class="brand">
+			<span class="logo" aria-hidden="true">iv</span>
+			<span>{SITE.name}</span>
+		</a>
+		<nav aria-label="Main">
+			<ul>
+				{
+					NAV.map((item) => (
+						<li>
+							<a href={item.href}>{item.label}</a>
+						</li>
+					))
+				}
+			</ul>
+		</nav>
+		<div class="tools">
+			<ThemeToggle />
+			<CVToggle />
+		</div>
+	</div>
+</header>
+
+<style>
+	.site-header {
+		position: sticky;
+		top: 0;
+		z-index: 50;
+		background: color-mix(in srgb, var(--bg) 85%, transparent);
+		backdrop-filter: blur(10px);
+		border-bottom: 1px solid var(--border);
+	}
+	.inner {
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+		min-height: 4rem;
+	}
+	.brand {
+		display: flex;
+		align-items: center;
+		gap: 0.6rem;
+		font-family: var(--font-display);
+		font-weight: 600;
+		font-size: 1.1rem;
+		color: var(--text);
+		text-decoration: none;
+		margin-right: auto;
+	}
+	.logo {
+		display: inline-grid;
+		place-items: center;
+		width: 2rem;
+		height: 2rem;
+		border-radius: 10px 14px 9px 13px;
+		background: var(--c-coral);
+		color: #fff;
+		font-family: var(--font-mono);
+		font-size: 0.85rem;
+		font-weight: 700;
+		rotate: -6deg;
+		transition: rotate 0.3s ease;
+	}
+	.brand:hover .logo {
+		rotate: 8deg;
+	}
+	.tools {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+	ul {
+		display: flex;
+		gap: 0.25rem;
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+	nav a {
+		display: block;
+		padding: 0.4rem 0.7rem;
+		border-radius: 999px;
+		color: var(--text-muted);
+		text-decoration: none;
+		font-size: 0.95rem;
+		font-weight: 500;
+	}
+	nav a:hover {
+		color: var(--text);
+		background: var(--surface-2);
+	}
+
+	@media (max-width: 640px) {
+		.inner {
+			flex-wrap: wrap;
+			padding-block: 0.6rem;
+		}
+		nav {
+			order: 3;
+			width: 100%;
+			overflow-x: auto;
+		}
+		nav a {
+			padding-inline: 0.6rem;
+		}
+	}
+</style>

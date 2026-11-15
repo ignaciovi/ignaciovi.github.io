@@ -1,0 +1,229 @@
+---
+// The "machine-readable" version of the site: plain semantic HTML + JSON Resume.
+// Hidden until the header toggle (or a #cv link) switches the page into CV mode.
+import { SITE } from '../site';
+import { EXPERIENCE, EDUCATION, SKILLS, PROJECTS, VALUES } from '../data';
+import { buildResume } from '../cv';
+
+const json = JSON.stringify(buildResume(), null, 2);
+---
+
+<section class="cv container" id="cv-view" aria-label="Machine-readable CV" data-cv-view>
+	<div class="cv-bar">
+		<span class="prompt">$ cat ignacio-valdelvira.cv --format=<span data-cv-format>text</span></span>
+		<div class="cv-actions">
+			<div class="seg" role="tablist" aria-label="CV format">
+				<button type="button" role="tab" aria-selected="true" data-cv-tab="text">text</button>
+				<button type="button" role="tab" aria-selected="false" data-cv-tab="json">json</button>
+			</div>
+			<a href="/cv.json" download="ignacio-valdelvira-cv.json">download .json</a>
+		</div>
+	</div>
+
+	<article class="cv-text" data-cv-pane="text" itemscope itemtype="https://schema.org/Person">
+		<h1 itemprop="name">{SITE.name}</h1>
+		<p><span itemprop="jobTitle">{SITE.role}</span> · {SITE.location}</p>
+		<p>
+			email: <a href={`mailto:${SITE.email}`} itemprop="email">{SITE.email}</a><br />
+			web: <a href={SITE.url} itemprop="url">{SITE.url}</a><br />
+			github: <a href={SITE.links.github}>{SITE.links.github}</a><br />
+			linkedin: <a href={SITE.links.linkedin}>{SITE.links.linkedin}</a>
+		</p>
+
+		<h2>## Summary</h2>
+		<p>{SITE.description}</p>
+
+		<h2>## Experience</h2>
+		{
+			EXPERIENCE.map((e) => (
+				<section>
+					<h3>
+						### {e.role} — {e.company}
+					</h3>
+					<p>
+						<time datetime={e.startDate}>{e.startDate}</time> → {e.endDate ? <time datetime={e.endDate}>{e.endDate}</time> : 'present'} ·{' '}
+						{e.place}
+					</p>
+					<ul>
+						{e.highlights.map((h) => (
+							<li>{h}</li>
+						))}
+					</ul>
+					<p>stack: {e.stack.join(', ')}</p>
+				</section>
+			))
+		}
+
+		<h2>## Education</h2>
+		<ul>
+			{
+				EDUCATION.map((ed) => (
+					<li>
+						{ed.studyType} {ed.area}, {ed.institution} ({ed.dates}). {ed.note}
+					</li>
+				))
+			}
+		</ul>
+
+		<h2>## Skills</h2>
+		<ul>
+			{
+				SKILLS.map((s) => (
+					<li>
+						{s.name}: {s.keywords.join(', ')}
+					</li>
+				))
+			}
+		</ul>
+
+		<h2>## Projects</h2>
+		<ul>
+			{
+				PROJECTS.map((p) => (
+					<li>
+						{p.url ? <a href={p.url}>{p.title}</a> : p.title} [{p.status.toLowerCase()}]: {p.blurb}
+					</li>
+				))
+			}
+		</ul>
+
+		<h2>## How I work</h2>
+		<ul>{VALUES.map((v) => <li>{v.title}: {v.text}</li>)}</ul>
+
+		<h2>## Interests</h2>
+		<p>Guitar and singing (open mics, live looping with a Boss RC-500). Advanced certified scuba diver.</p>
+	</article>
+
+	<pre class="cv-json" data-cv-pane="json" hidden><code>{json}</code></pre>
+</section>
+
+<script>
+	const root = document.documentElement;
+	const toggles = document.querySelectorAll<HTMLButtonElement>('[data-cv-toggle]');
+
+	function setMode(cv: boolean, push = true) {
+		const apply = () => {
+			if (cv) root.dataset.view = 'cv';
+			else delete root.dataset.view;
+			toggles.forEach((t) => t.setAttribute('aria-pressed', String(cv)));
+			window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+		};
+		const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+		const doc = document as Document & { startViewTransition?: (cb: () => void) => unknown };
+		if (doc.startViewTransition && !reduce) doc.startViewTransition(apply);
+		else apply();
+		if (push) history.replaceState(null, '', cv ? '#cv' : location.pathname + location.search);
+	}
+
+	toggles.forEach((t) => t.addEventListener('click', () => setMode(root.dataset.view !== 'cv')));
+	if (location.hash === '#cv') setMode(true, false);
+
+	// text / json tabs
+	const tabs = document.querySelectorAll<HTMLButtonElement>('[data-cv-tab]');
+	const format = document.querySelector('[data-cv-format]');
+	tabs.forEach((tab) =>
+		tab.addEventListener('click', () => {
+			const which = tab.dataset.cvTab!;
+			tabs.forEach((t) => t.setAttribute('aria-selected', String(t === tab)));
+			document.querySelectorAll<HTMLElement>('[data-cv-pane]').forEach((p) => (p.hidden = p.dataset.cvPane !== which));
+			if (format) format.textContent = which;
+		}),
+	);
+</script>
+
+<style>
+	.cv {
+		display: none;
+		padding-block: 2rem 4rem;
+		font-family: var(--font-mono);
+		font-size: 0.92rem;
+		line-height: 1.6;
+	}
+	:global(:root[data-view='cv']) .cv {
+		display: block;
+	}
+	:global(:root[data-view='cv'] main),
+	:global(:root[data-view='cv'] .site-footer) {
+		display: none;
+	}
+	:global(:root[data-view='cv'] body::before) {
+		background-image: none;
+	}
+	.cv-bar {
+		position: sticky;
+		top: 4.25rem;
+		z-index: 5;
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.75rem;
+		align-items: center;
+		justify-content: space-between;
+		padding: 0.6rem 0.9rem;
+		margin-bottom: 2rem;
+		border: 1px solid var(--border);
+		border-radius: 10px;
+		background: var(--surface);
+	}
+	.prompt {
+		color: var(--c-green);
+	}
+	.cv-actions {
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+	}
+	.seg {
+		display: inline-flex;
+		border: 1px solid var(--border);
+		border-radius: 8px;
+		overflow: hidden;
+	}
+	.seg button {
+		padding: 0.2rem 0.75rem;
+		border: 0;
+		background: transparent;
+		color: var(--text-muted);
+		font: inherit;
+		cursor: pointer;
+	}
+	.seg button[aria-selected='true'] {
+		background: var(--text);
+		color: var(--bg);
+	}
+	.cv-text {
+		max-width: 52rem;
+	}
+	.cv-text h1,
+	.cv-text h2,
+	.cv-text h3 {
+		font-family: var(--font-mono);
+		letter-spacing: 0;
+	}
+	.cv-text h1 {
+		font-size: 1.6rem;
+	}
+	.cv-text h2 {
+		font-size: 1.1rem;
+		margin-top: 2.25rem;
+		color: var(--accent);
+	}
+	.cv-text h3 {
+		font-size: 1rem;
+		margin-top: 1.5rem;
+	}
+	.cv-text ul {
+		padding-left: 1.2rem;
+	}
+	.cv-text li::marker {
+		content: '- ';
+	}
+	.cv-json {
+		margin: 0;
+		padding: 1.25rem;
+		overflow-x: auto;
+		border-radius: 10px;
+		background: var(--surface);
+		border: 1px solid var(--border);
+		font-size: 0.82rem;
+	}
+</style>

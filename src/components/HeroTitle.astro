@@ -1,0 +1,248 @@
+---
+// "Hey, I'm Ignacio and I <phrase>". Clicking the phrase decodes it into another one, picked at random.
+import { HERO_PHRASES } from '../data';
+const [first] = HERO_PHRASES;
+---
+
+<h1 class="hero-title">
+	Hey, I'm Ignacio <span class="wave" aria-hidden="true">👋</span><br />
+	and I <span
+		class="morph"
+		role="button"
+		tabindex="0"
+		title="Show me another"
+		data-morph
+		data-phrases={JSON.stringify(HERO_PHRASES)}
+		><span class="morph-text" data-morph-text aria-live="polite">{first}</span><span class="morph-icon" aria-hidden="true"
+			><span class="morph-icon-glyph">↻</span><span class="morph-hint"
+				><span class="verb-click">click me</span><span class="verb-tap">tap me</span></span
+			></span
+		></span
+	>
+</h1>
+
+<script>
+	const GLYPHS = '01#%*+=/\\{}[]_$?!';
+	const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+	const escape = (c: string) => (c === '&' ? '&amp;' : c === '<' ? '&lt;' : c === '>' ? '&gt;' : c);
+
+	document.querySelectorAll<HTMLElement>('[data-morph]').forEach((el) => {
+		const text = el.querySelector<HTMLElement>('[data-morph-text]')!;
+		const phrases: string[] = JSON.parse(el.dataset.phrases ?? '[]');
+		let current = text.textContent ?? '';
+		let running = false;
+
+		// Shuffle-bag: every phrase shows once (in random order) before any repeats.
+		let bag: string[] = [];
+		let round = 0;
+		const refill = () => {
+			bag = phrases.filter((p) => p !== current);
+			for (let i = bag.length - 1; i > 0; i--) {
+				const j = Math.floor(Math.random() * (i + 1));
+				[bag[i], bag[j]] = [bag[j], bag[i]];
+			}
+			// On later rounds, put the current phrase back in, but never first.
+			if (round++ > 0) bag.splice(1 + Math.floor(Math.random() * bag.length), 0, current);
+		};
+		const pickNext = () => {
+			if (bag.length === 0) refill();
+			return bag.shift() ?? current;
+		};
+
+		const morph = () => {
+			if (running || phrases.length < 2) return;
+			const from = current;
+			const next = pickNext();
+			current = next;
+			if (reduceMotion) {
+				text.textContent = next;
+				return;
+			}
+			running = true;
+			el.classList.remove('is-morphing');
+			void el.offsetWidth; // restart the CSS highlight sweep
+			el.classList.add('is-morphing');
+
+			const len = Math.max(from.length, next.length);
+			const duration = 700;
+			const start = performance.now();
+			let lastSwap = 0;
+			let scrambled: string[] = [];
+
+			const frame = (now: number) => {
+				const t = now - start;
+				// Re-roll the random glyphs every ~45ms so it reads as "decoding", not noise.
+				if (now - lastSwap > 45) {
+					scrambled = Array.from({ length: len }, () => GLYPHS[Math.floor(Math.random() * GLYPHS.length)]);
+					lastSwap = now;
+				}
+				let html = '';
+				let done = true;
+				for (let i = 0; i < len; i++) {
+					const settleAt = 90 + (i / len) * duration;
+					if (t >= settleAt) {
+						html += escape(next[i] ?? '');
+					} else {
+						done = false;
+						const target = next[i] ?? from[i] ?? '';
+						html += target === ' ' ? ' ' : `<span class="glyph">${escape(scrambled[i])}</span>`;
+					}
+				}
+				text.innerHTML = html;
+				if (done) {
+					text.textContent = next;
+					running = false;
+				} else {
+					requestAnimationFrame(frame);
+				}
+			};
+			requestAnimationFrame(frame);
+		};
+
+		// Until the first interaction the chip says "click me" and nudges now and then.
+		const interacted = () => el.classList.add('has-interacted');
+		el.addEventListener('click', () => {
+			interacted();
+			morph();
+		});
+		el.addEventListener('keydown', (e) => {
+			if (e.key === 'Enter' || e.key === ' ') {
+				e.preventDefault();
+				interacted();
+				morph();
+			}
+		});
+	});
+</script>
+
+<style>
+	.hero-title {
+		font-size: clamp(2.6rem, 7.5vw, 5.4rem);
+		line-height: 1.08;
+		letter-spacing: -0.025em;
+		margin-bottom: 1.25rem;
+	}
+	.wave {
+		display: inline-block;
+		transform-origin: 70% 80%;
+		animation: wave 2.4s ease-in-out 0.6s 2;
+	}
+	@keyframes wave {
+		0%, 60%, 100% { rotate: 0deg; }
+		10%, 30% { rotate: 14deg; }
+		20%, 40% { rotate: -8deg; }
+	}
+	.morph {
+		position: relative;
+		cursor: pointer;
+		color: var(--accent);
+		isolation: isolate;
+		border-radius: 6px;
+		-webkit-tap-highlight-color: transparent;
+	}
+	/* Highlighter stroke under the phrase; sweeps in again on every change */
+	.morph::before {
+		content: '';
+		position: absolute;
+		left: -0.08em;
+		right: -0.08em;
+		bottom: 0.06em;
+		height: 0.38em;
+		background: var(--highlight);
+		border-radius: 0.2em;
+		z-index: -1;
+		transform-origin: left center;
+		rotate: -1deg;
+	}
+	.morph.is-morphing::before {
+		animation: sweep 0.75s cubic-bezier(0.6, 0, 0.2, 1);
+	}
+	@keyframes sweep {
+		0% { transform: scaleX(1); transform-origin: right center; }
+		45% { transform: scaleX(0); transform-origin: right center; }
+		46% { transform: scaleX(0); transform-origin: left center; }
+		100% { transform: scaleX(1); transform-origin: left center; }
+	}
+	.morph-text :global(.glyph) {
+		font-family: var(--font-mono);
+		font-weight: 500;
+		color: var(--c-coral);
+		opacity: 0.85;
+	}
+	.morph:hover::before,
+	.morph:focus-visible::before {
+		height: 0.5em;
+		transition: height 0.2s ease;
+	}
+	.morph:focus-visible {
+		outline: 3px solid var(--focus);
+		outline-offset: 4px;
+	}
+	/* A small "button" chip after the phrase so it reads as interactive, including on touch */
+	.morph-icon {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35em;
+		margin-left: 0.3em;
+		padding: 0.2em 0.65em;
+		vertical-align: middle;
+		border: 2px solid currentColor;
+		border-radius: 999px;
+		background: var(--surface);
+		color: var(--text-muted);
+		font-family: var(--font-mono);
+		font-size: clamp(0.72rem, 1.3vw, 0.9rem);
+		font-weight: 600;
+		letter-spacing: 0;
+		line-height: 1.2;
+		white-space: nowrap;
+		translate: 0 -0.15em;
+		box-shadow: 0 2px 0 currentColor;
+		transition:
+			color 0.2s ease,
+			translate 0.15s ease,
+			box-shadow 0.15s ease;
+	}
+	.morph:not(.has-interacted) .morph-icon {
+		animation: nudge 4s ease-in-out 1.5s infinite;
+	}
+	@keyframes nudge {
+		0%, 82%, 100% { rotate: 0deg; }
+		86% { rotate: -8deg; }
+		90% { rotate: 6deg; }
+		94% { rotate: -3deg; }
+	}
+	.morph-icon-glyph {
+		display: inline-block;
+		font-size: 1.15em;
+		transition: rotate 0.5s ease;
+	}
+	.morph.has-interacted .morph-hint {
+		display: none;
+	}
+	.verb-tap {
+		display: none;
+	}
+	@media (hover: none) {
+		.verb-click { display: none; }
+		.verb-tap { display: inline; }
+	}
+	.morph:hover .morph-icon,
+	.morph:focus-visible .morph-icon,
+	.morph.is-morphing .morph-icon {
+		color: var(--c-coral);
+	}
+	.morph:active .morph-icon {
+		translate: 0 0;
+		box-shadow: 0 0 0 currentColor;
+	}
+	.morph:hover .morph-icon-glyph,
+	.morph.is-morphing .morph-icon-glyph {
+		rotate: 360deg;
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.wave { animation: none; }
+		.morph.is-morphing::before { animation: none; }
+		.morph .morph-icon { animation: none !important; }
+	}
+</style>

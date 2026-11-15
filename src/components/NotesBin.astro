@@ -1,0 +1,842 @@
+---
+// "How I work" as a game of paper toss. Notes sit in a pile in front of you, one at a time in random
+// order; the bin is at the far end of the room. Scrunch the top note into a ball (drag it, or tap it)
+// and flick it up, away from you, to lob it into the bin. The ball shrinks as it flies into the distance.
+// Keyboard and screen-reader users get a "Bin it" button that makes the throw for them.
+import { NOTES } from '../data';
+
+// Floorboards in one-point perspective: boards fan out from a vanishing point just behind the bin,
+// and the cross joints get closer together the further away they are.
+const VANISH = { x: 50, y: -18 };
+const boards = Array.from({ length: 19 }, (_, i) => -175 + i * 25);
+const joints = Array.from({ length: 7 }, (_, i) => 100 * ((i + 1) / 8) ** 1.9);
+---
+
+<div class="notes" data-notes>
+	<p class="notes-hint" data-hint>
+		<span class="verb-click">Read the note, then drag it to scrunch it up and flick it towards the bin.</span><span
+			class="verb-tap">Read the note, tap it to scrunch it up, then flick the ball towards the bin.</span
+		>
+	</p>
+
+	<div class="room" data-room>
+		<div class="floor" aria-hidden="true">
+			<svg viewBox="0 0 100 100" preserveAspectRatio="none">
+				{boards.map((x) => <line x1={VANISH.x} y1={VANISH.y} x2={x} y2="100" />)}
+				{joints.map((y) => <line class="joint" x1="0" y1={y} x2="100" y2={y} />)}
+			</svg>
+		</div>
+		<div class="far">
+			<div class="bin" data-bin aria-hidden="true">
+				<div class="bin-can" data-bin-can>
+					<div class="bin-pile" data-bin-pile></div>
+					<svg class="bin-front" viewBox="0 0 120 140" preserveAspectRatio="none">
+						<path class="bin-body" d="M6 10 H114 L102 136 H18 Z"></path>
+						<g class="bin-mesh">
+							<path d="M24 12 L30 134 M42 12 L45 134 M60 12 V134 M78 12 L75 134 M96 12 L90 134"></path>
+							<path d="M10 52 H110 M14 94 H106"></path>
+						</g>
+						<path class="bin-rim" d="M2 10 H118"></path>
+					</svg>
+				</div>
+				<span class="bin-shadow"></span>
+			</div>
+			<p class="bin-label"><span data-binned>0</span> / {NOTES.length} in the bin</p>
+		</div>
+
+		<div class="pile" data-pile>
+			{
+				NOTES.map((n) => (
+					<article class:list={['note', n.kind, { long: n.text.length > 260 }]} data-note aria-roledescription="note">
+						<div class="note-content">
+							<p class="note-label">
+								{{ quote: 'Something I read and keep coming back to', enjoy: 'Something I enjoy', mine: 'From my notebook' }[n.kind]}
+							</p>
+							{n.kind === 'quote' ? (
+								<blockquote>
+									<p>{n.text}</p>
+									{n.source && <footer>— {n.source}</footer>}
+								</blockquote>
+							) : (
+								<p class="note-text">{n.text}</p>
+							)}
+							<div class="note-foot">
+								<span class="note-count" data-count />
+								<button type="button" class="bin-it" data-bin-it>
+									Bin it 🗑
+								</button>
+							</div>
+						</div>
+					</article>
+				))
+			}
+			<div class="done" data-done hidden>
+				<p class="done-title">That’s the whole pile.</p>
+				<p class="done-text">Thanks for reading how I work.</p>
+				<button type="button" class="btn btn-ghost" data-restore>Dig them out of the bin ↺</button>
+			</div>
+		</div>
+	</div>
+	<p class="sr-only" aria-live="polite" data-live></p>
+</div>
+
+<script>
+	const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+	const EASE = 'cubic-bezier(.2,.8,.2,1)';
+	const DRAG_THRESHOLD = 8;
+	const FULL_THROW = 1.15; // upward flick speed (px/ms) that reaches the bin
+	const FAR_SCALE = 0.42; // how small the ball looks once it reaches the bin
+
+	type Pt = { x: number; y: number };
+	const shuffle = <T,>(a: T[]) => {
+		for (let i = a.length - 1; i > 0; i--) {
+			const j = Math.floor(Math.random() * (i + 1));
+			[a[i], a[j]] = [a[j], a[i]];
+		}
+		return a;
+	};
+	const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+	const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+	const done = (a: Animation) => a.finished.catch(() => {});
+
+	document.querySelectorAll<HTMLElement>('[data-notes]').forEach((root) => {
+		const room = root.querySelector<HTMLElement>('[data-room]')!;
+		const pileEl = root.querySelector<HTMLElement>('[data-pile]')!;
+		const bin = root.querySelector<HTMLElement>('[data-bin]')!;
+		const binCan = root.querySelector<HTMLElement>('[data-bin-can]')!;
+		const binPile = root.querySelector<HTMLElement>('[data-bin-pile]')!;
+		const binnedEl = root.querySelector<HTMLElement>('[data-binned]')!;
+		const doneEl = root.querySelector<HTMLElement>('[data-done]')!;
+		const live = root.querySelector<HTMLElement>('[data-live]')!;
+		const hint = root.querySelector<HTMLElement>('[data-hint]')!;
+		const hintHTML = hint.innerHTML;
+		const all = [...root.querySelectorAll<HTMLElement>('[data-note]')];
+		const total = all.length;
+
+		let pile: HTMLElement[] = [];
+		let ball: HTMLElement | null = null; // the scrunched-up top note, if any
+		let state: 'idle' | 'holding' | 'resting' | 'flying' = 'idle';
+
+		const top = () => pile[0];
+
+		// ---- Geometry, all relative to the room so a resting ball scrolls with the page ----
+		const roomRect = () => room.getBoundingClientRect();
+		const toRoom = (x: number, y: number): Pt => {
+			const r = roomRect();
+			return { x: x - r.left, y: y - r.top };
+		};
+		const rectIn = (el: HTMLElement) => {
+			const r = el.getBoundingClientRect();
+			const o = roomRect();
+			return { left: r.left - o.left, top: r.top - o.top, width: r.width, height: r.height };
+		};
+		const mouth = () => {
+			const r = rectIn(binCan);
+			return { x: r.left + r.width / 2, y: r.top + r.height * 0.12, half: r.width / 2 };
+		};
+		const restPoint = (): Pt => {
+			const r = rectIn(pileEl);
+			return { x: r.left + r.width / 2, y: r.top + Math.min(r.height * 0.55, 220) };
+		};
+
+		// ---- The pile ----
+		function layout(focusTop = false) {
+			pile.forEach((n, i) => {
+				n.hidden = false;
+				n.style.setProperty('--depth', String(Math.min(i, 3)));
+				n.style.zIndex = String(pile.length - i);
+				n.classList.toggle('is-top', i === 0);
+				n.classList.remove('is-next', 'is-gone');
+				n.classList.toggle('is-deep', i > 2);
+				n.inert = i !== 0;
+				n.querySelector('[data-count]')!.textContent = `Note ${total - pile.length + 1 + i} of ${total}`;
+			});
+			fitUnderneath();
+			doneEl.hidden = pile.length > 0;
+			binnedEl.textContent = String(total - pile.length);
+			if (focusTop) (top()?.querySelector<HTMLElement>('[data-bin-it]') ?? doneEl.querySelector<HTMLElement>('button'))?.focus({ preventScroll: true });
+		}
+
+		// Notes underneath are trimmed to the top note's height, so a short note doesn't sit on a tower of paper.
+		function fitUnderneath() {
+			const t = top();
+			pileEl.style.setProperty('--top-h', t ? `${t.offsetHeight}px` : 'auto');
+		}
+		addEventListener('resize', fitUnderneath);
+
+		function deal() {
+			pile = shuffle([...all]);
+			all.forEach((n) => n.style.setProperty('--tilt', `${(Math.random() * 4 - 2).toFixed(2)}deg`));
+			binPile.replaceChildren();
+			layout();
+		}
+
+		// ---- The ball ----
+		const place = (b: HTMLElement, p: Pt, s = 1) => {
+			b.style.left = `${p.x}px`;
+			b.style.top = `${p.y}px`;
+			b.style.scale = String(s);
+		};
+
+		function scrunch(at: Pt) {
+			const note = top();
+			const b = document.createElement('div');
+			b.className = 'paper-ball';
+			b.setAttribute('aria-hidden', 'true');
+			b.style.setProperty('--paper', getComputedStyle(note).getPropertyValue('--paper'));
+			b.style.setProperty('--spin', `${Math.round(Math.random() * 360)}deg`);
+			place(b, at);
+			room.append(b);
+			b.addEventListener('pointerdown', (e) => {
+				if (state !== 'resting' || e.button !== 0) return;
+				e.preventDefault();
+				grab(e);
+			});
+			pile[1]?.classList.add('is-next');
+			if (reduceMotion) {
+				note.classList.add('is-gone');
+			} else {
+				const r = rectIn(note);
+				note.animate(
+					[
+						{ transform: 'none', opacity: 1 },
+						{
+							transform: `translate(${at.x - (r.left + r.width / 2)}px, ${at.y - (r.top + r.height / 2)}px) scale(0.1) rotate(28deg)`,
+							opacity: 0,
+						},
+					],
+					{ duration: 220, easing: 'ease-in' },
+				).onfinish = () => {
+					if (ball === b) note.classList.add('is-gone');
+				};
+				b.animate([{ scale: 0.2, opacity: 0 }, { scale: 1.15, opacity: 1, offset: 0.7 }, { scale: 1, opacity: 1 }], {
+					duration: 260,
+					easing: EASE,
+				});
+			}
+			ball = b;
+			return b;
+		}
+
+		async function rest(msg?: string) {
+			if (!ball) return;
+			state = 'resting';
+			ball.classList.add('is-resting');
+			const to = restPoint();
+			if (!reduceMotion) {
+				await done(
+					ball.animate([{ left: ball.style.left, top: ball.style.top, scale: ball.style.scale || 1 }, { left: `${to.x}px`, top: `${to.y}px`, scale: 1 }], {
+						duration: 420,
+						easing: EASE,
+					}),
+				);
+			}
+			place(ball, to);
+			if (msg) flashHint(msg);
+		}
+
+		// ---- Holding & flicking ----
+		let samples: { x: number; y: number; t: number }[] = [];
+
+		function grab(e: PointerEvent) {
+			if (!ball) return;
+			state = 'holding';
+			ball.classList.remove('is-resting');
+			root.classList.add('is-holding');
+			samples = [{ x: e.clientX, y: e.clientY, t: e.timeStamp }];
+			place(ball, toRoom(e.clientX, e.clientY));
+			const id = e.pointerId;
+			const move = (ev: PointerEvent) => {
+				if (ev.pointerId !== id || !ball) return;
+				ev.preventDefault();
+				place(ball, toRoom(ev.clientX, ev.clientY));
+				samples.push({ x: ev.clientX, y: ev.clientY, t: ev.timeStamp });
+				while (samples.length > 2 && ev.timeStamp - samples[0].t > 90) samples.shift();
+				bin.classList.toggle('is-target', overBin(ev.clientX, ev.clientY));
+			};
+			const up = (ev: PointerEvent) => {
+				if (ev.pointerId !== id) return;
+				removeEventListener('pointermove', move);
+				removeEventListener('pointerup', up);
+				removeEventListener('pointercancel', up);
+				root.classList.remove('is-holding');
+				bin.classList.remove('is-target');
+				release(ev);
+			};
+			addEventListener('pointermove', move, { passive: false });
+			addEventListener('pointerup', up);
+			addEventListener('pointercancel', up);
+		}
+
+		const overBin = (x: number, y: number) => {
+			const r = binCan.getBoundingClientRect();
+			return x >= r.left - 16 && x <= r.right + 16 && y >= r.top - 24 && y <= r.bottom + 8;
+		};
+
+		function release(e: PointerEvent) {
+			if (!ball) return;
+			if (e.type === 'pointerup' && overBin(e.clientX, e.clientY)) return void dunk();
+			const a = samples[0];
+			const b = samples[samples.length - 1];
+			const dt = b.t - a.t;
+			const vx = dt > 0 ? (b.x - a.x) / dt : 0;
+			const vy = dt > 0 ? (b.y - a.y) / dt : 0;
+			if (e.type !== 'pointerup' || vy > -0.3) return void rest('Flick it up and away from you, towards the bin.');
+			toss(clamp(-vy / FULL_THROW, 0.25, 2), vx);
+		}
+
+		// The ball travels "into" the screen: depth 0 is where you let go, 1 is the bin.
+		async function toss(depth: number, vx: number) {
+			if (!ball) return;
+			state = 'flying';
+			const b = ball;
+			const start: Pt = { x: parseFloat(b.style.left), y: parseFloat(b.style.top) };
+			const m = mouth();
+			let landX = start.x + vx * 200 * Math.min(depth, 1.2);
+			const wide = Math.abs(landX - m.x);
+			// Generous aim assist: close enough counts.
+			const hit = depth > 0.68 && depth < 1.7 && wide < Math.max(m.half * 3, 90);
+			if (hit) {
+				depth = 1;
+				landX = m.x + clamp(landX - m.x, -m.half * 0.3, m.half * 0.3);
+			}
+			const d = Math.min(depth, 1);
+			const end: Pt = {
+				x: landX,
+				y: depth <= 1 ? lerp(start.y, m.y, depth) + (hit ? 0 : (1 - d) * 20 + 30 * d) : m.y - (depth - 1) * 70,
+			};
+			const endScale = lerp(1, FAR_SCALE, Math.min(depth, 1.3));
+			const peak = Math.min(start.y, end.y) - (90 + 140 * d);
+			const ctrl: Pt = { x: (start.x + end.x) / 2, y: peak };
+
+			if (reduceMotion) {
+				place(b, end, endScale);
+			} else {
+				const frames: Keyframe[] = [];
+				for (let i = 0; i <= 24; i++) {
+					const t = i / 24;
+					const x = (1 - t) ** 2 * start.x + 2 * (1 - t) * t * ctrl.x + t ** 2 * end.x;
+					const y = (1 - t) ** 2 * start.y + 2 * (1 - t) * t * ctrl.y + t ** 2 * end.y;
+					frames.push({ left: `${x}px`, top: `${y}px`, scale: lerp(1, endScale, Math.sqrt(t)), rotate: `${t * 540}deg` });
+				}
+				await done(b.animate(frames, { duration: 520 + 260 * d, easing: 'cubic-bezier(.3,.1,.6,1)', fill: 'forwards' }));
+				place(b, end, endScale);
+			}
+
+			if (hit) return void dunk();
+
+			// Missed: little bounce on the floor, then it rolls back to you.
+			if (!reduceMotion) {
+				await done(
+					b.animate(
+						[
+							{ top: `${end.y}px` },
+							{ top: `${end.y - 18 * endScale}px`, offset: 0.4 },
+							{ top: `${end.y}px` },
+						],
+						{ duration: 300, easing: 'ease-out' },
+					),
+				);
+				b.getAnimations().forEach((a) => a.cancel());
+				place(b, end, endScale);
+			}
+			const verdict = depth <= 0.68 ? 'Too short!' : depth >= 1.7 ? 'Too far!' : 'Wide!';
+			live.textContent = `${verdict} The ball rolled back to you.`;
+			rest(`${verdict} Have another go.`);
+		}
+
+		async function dunk() {
+			if (!ball) return;
+			state = 'flying';
+			const b = ball;
+			const m = mouth();
+			const from = { left: b.style.left, top: b.style.top, scale: b.style.scale || '1' };
+			if (!reduceMotion) {
+				b.getAnimations().forEach((a) => a.cancel());
+				await done(
+					b.animate(
+						[
+							from,
+							{ left: `${m.x}px`, top: `${m.y - 6}px`, scale: FAR_SCALE, offset: 0.5 },
+							{ left: `${m.x}px`, top: `${m.y + 30}px`, scale: FAR_SCALE * 0.9, opacity: 0 },
+						],
+						{ duration: 360, easing: 'ease-in', fill: 'forwards' },
+					),
+				);
+				binCan.animate([{ rotate: '0deg' }, { rotate: '-6deg' }, { rotate: '5deg' }, { rotate: '-2deg' }, { rotate: '0deg' }], {
+					duration: 450,
+					easing: 'ease-out',
+				});
+			}
+			b.remove();
+			ball = null;
+			state = 'idle';
+			const note = pile.shift()!;
+			note.hidden = true;
+			note.classList.remove('is-top', 'is-next');
+			addToBinPile(note);
+			layout(document.activeElement?.closest('[data-notes]') === root);
+			live.textContent = pile.length ? 'In the bin! Next note.' : `All ${total} notes are in the bin.`;
+		}
+
+		function addToBinPile(note: HTMLElement) {
+			const i = binPile.children.length;
+			const b = document.createElement('span');
+			b.className = 'bin-ball';
+			b.style.setProperty('--paper', getComputedStyle(note).getPropertyValue('--paper'));
+			b.style.left = `${4 + ((i * 37) % 60)}%`;
+			b.style.bottom = `${2 + Math.floor(i / 3) * 14}%`;
+			b.style.setProperty('--spin', `${i * 47}deg`);
+			binPile.append(b);
+		}
+
+		let hintTimer = 0;
+		function flashHint(text: string) {
+			hint.textContent = text;
+			hint.classList.add('is-flash');
+			clearTimeout(hintTimer);
+			hintTimer = window.setTimeout(() => {
+				hint.innerHTML = hintHTML;
+				hint.classList.remove('is-flash');
+			}, 2600);
+		}
+
+		// ---- Scrunching the top note: drag it (grab straight away) or tap it (ball waits for you) ----
+		let down: { id: number; x: number; y: number } | null = null;
+		pileEl.addEventListener('pointerdown', (e) => {
+			const note = (e.target as HTMLElement).closest<HTMLElement>('[data-note]');
+			if (state !== 'idle' || e.button !== 0 || !note || note !== top() || (e.target as HTMLElement).closest('button')) return;
+			down = { id: e.pointerId, x: e.clientX, y: e.clientY };
+		});
+		pileEl.addEventListener('pointermove', (e) => {
+			if (!down || down.id !== e.pointerId || state !== 'idle') return;
+			if (Math.hypot(e.clientX - down.x, e.clientY - down.y) < DRAG_THRESHOLD) return;
+			down = null;
+			scrunch(toRoom(e.clientX, e.clientY));
+			grab(e);
+		});
+		pileEl.addEventListener('pointerup', (e) => {
+			if (!down || down.id !== e.pointerId || state !== 'idle') return;
+			down = null;
+			scrunch(toRoom(e.clientX, e.clientY));
+			rest();
+		});
+		pileEl.addEventListener('pointercancel', () => (down = null));
+
+		// ---- "Bin it": scrunch and make a perfect throw ----
+		root.querySelectorAll<HTMLButtonElement>('[data-bin-it]').forEach((btn) =>
+			btn.addEventListener('click', () => {
+				if (state !== 'idle') return;
+				const r = rectIn(top());
+				scrunch({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+				const m = mouth();
+				setTimeout(() => toss(1, (m.x - parseFloat(ball!.style.left)) / 200), reduceMotion ? 0 : 200);
+			}),
+		);
+
+		root.querySelector('[data-restore]')!.addEventListener('click', () => {
+			deal();
+			live.textContent = 'All notes are back on the pile, reshuffled.';
+			top()?.querySelector<HTMLElement>('[data-bin-it]')?.focus({ preventScroll: true });
+		});
+
+		deal();
+	});
+</script>
+
+<style>
+	.notes {
+		--paper-mine: #fff1a8;
+		--paper-quote: #fffdf7;
+		--paper-enjoy: #d9f5d0;
+		--far-h: clamp(7.5rem, 14vw, 9.5rem);
+	}
+	.notes-hint {
+		margin: 0 0 1rem;
+		color: var(--text-muted);
+		transition: color 0.2s ease;
+	}
+	.notes-hint.is-flash {
+		color: var(--c-coral);
+		font-weight: 600;
+	}
+	.verb-tap {
+		display: none;
+	}
+	@media (hover: none) {
+		.verb-click {
+			display: none;
+		}
+		.verb-tap {
+			display: inline;
+		}
+	}
+
+	/* ---------- The room: a back wall with the bin, and the floor you're standing on ---------- */
+	.room {
+		--pad: clamp(1rem, 3vw, 2rem);
+		/* where the back wall meets the floor: above the bin's base, so the bin stands on the floor */
+		--horizon: calc(var(--pad) + var(--far-h) - 3.6rem);
+		position: relative;
+		display: grid;
+		justify-items: center;
+		gap: clamp(1.5rem, 4vw, 3rem);
+		padding: var(--pad) var(--pad) calc(var(--pad) + 1rem);
+		border-radius: 20px;
+		background:
+			/* skirting board */
+			linear-gradient(
+				transparent 0 calc(var(--horizon) - 0.5rem),
+				color-mix(in srgb, var(--text) 14%, var(--surface-2)) 0 var(--horizon),
+				transparent 0
+			),
+			/* floor gets lighter as it comes towards you */
+			linear-gradient(
+				var(--surface-2) 0 calc(var(--horizon) - 0.5rem),
+				color-mix(in srgb, var(--c-yellow) 10%, var(--surface-2)) 0,
+				color-mix(in srgb, var(--c-yellow) 6%, var(--surface)) 100%
+			);
+		box-shadow: inset 0 0 0 2px var(--border);
+		user-select: none;
+	}
+	.floor {
+		position: absolute;
+		inset: var(--horizon) 0 0;
+		overflow: hidden;
+		border-radius: 0 0 20px 20px;
+		pointer-events: none;
+	}
+	.floor svg {
+		display: block;
+		width: 100%;
+		height: 100%;
+	}
+	.floor line {
+		stroke: color-mix(in srgb, var(--text) 13%, transparent);
+		stroke-width: 1.5;
+		vector-effect: non-scaling-stroke;
+	}
+	.floor line.joint {
+		stroke: color-mix(in srgb, var(--text) 8%, transparent);
+	}
+	.far,
+	.pile {
+		position: relative;
+		z-index: 1;
+	}
+	.far {
+		display: grid;
+		justify-items: center;
+		align-content: end;
+		gap: 0.35rem;
+		height: var(--far-h);
+	}
+
+	/* ---------- The bin, far away ---------- */
+	.bin {
+		position: relative;
+		display: grid;
+		justify-items: center;
+	}
+	.bin-can {
+		position: relative;
+		z-index: 1;
+		width: clamp(3.6rem, 7vw, 4.6rem);
+		aspect-ratio: 120 / 140;
+		transform-origin: 50% 100%;
+		transition: scale 0.2s ease;
+	}
+	.bin.is-target .bin-can {
+		scale: 1.12;
+	}
+	.bin-shadow {
+		width: 130%;
+		height: 0.6rem;
+		margin-top: -0.35rem;
+		border-radius: 50%;
+		background: rgb(0 0 0 / 0.18);
+		filter: blur(2px);
+	}
+	.bin-pile {
+		position: absolute;
+		inset: 10% 15% 3%;
+		overflow: hidden;
+	}
+	.bin-pile :global(.bin-ball) {
+		position: absolute;
+		width: 38%;
+		aspect-ratio: 1;
+	}
+	.bin-front {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		overflow: visible;
+	}
+	.bin-body {
+		fill: color-mix(in srgb, var(--c-grey) 18%, transparent);
+		stroke: var(--text);
+		stroke-width: 4;
+		stroke-linejoin: round;
+	}
+	.bin-mesh {
+		stroke: var(--text);
+		stroke-width: 2;
+		opacity: 0.35;
+		fill: none;
+	}
+	.bin-rim {
+		stroke: var(--text);
+		stroke-width: 8;
+		stroke-linecap: round;
+		transition: stroke 0.2s ease;
+	}
+	.bin.is-target .bin-rim {
+		stroke: var(--c-coral);
+	}
+	.notes.is-holding .bin-rim {
+		animation: rim 0.9s ease-in-out infinite;
+	}
+	@keyframes rim {
+		50% {
+			stroke: var(--c-yellow);
+		}
+	}
+	.bin-label {
+		margin: 0;
+		font-family: var(--font-mono);
+		font-size: 0.72rem;
+		color: var(--text-muted);
+	}
+
+	/* ---------- The pile, right in front of you ---------- */
+	.pile {
+		display: grid;
+		width: min(100%, 36rem);
+		padding: 0 1.25rem 1.25rem 0;
+	}
+	.pile > * {
+		grid-area: 1 / 1;
+	}
+	.note {
+		--paper: var(--paper-mine);
+		--margin: clamp(1.6rem, 4vw, 2.2rem);
+		position: relative;
+		align-self: start;
+		min-height: 14rem;
+		padding: clamp(1.25rem, 3vw, 2rem);
+		padding-left: calc(var(--margin) + 0.9rem);
+		border-radius: 4px;
+		background:
+			linear-gradient(90deg, transparent 0 var(--margin), rgb(240 80 60 / 0.35) 0 calc(var(--margin) + 2px), transparent 0),
+			linear-gradient(transparent 0 calc(100% - 1px), rgb(0 0 0 / 0.06) 0) 0 0.6rem / 100% 1.75em,
+			var(--paper);
+		color: #24222b;
+		box-shadow:
+			0 1px 2px rgb(0 0 0 / 0.08),
+			0 10px 24px rgb(0 0 0 / 0.14);
+		transform: translate(calc(var(--depth, 0) * 8px), calc(var(--depth, 0) * 10px)) rotate(var(--tilt, 0deg));
+		transition:
+			transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1),
+			opacity 0.3s ease;
+		touch-action: pan-y; /* vertical swipes still scroll the page */
+	}
+	.note.quote {
+		--paper: var(--paper-quote);
+	}
+	.note.enjoy {
+		--paper: var(--paper-enjoy);
+	}
+	.note.is-top {
+		cursor: grab;
+	}
+	.note.is-top,
+	.note.is-next {
+		transform: rotate(calc(var(--tilt, 0deg) / 2));
+	}
+	.note.is-gone {
+		visibility: hidden;
+	}
+	.note.is-deep {
+		opacity: 0;
+	}
+	.note:not(.is-top, .is-next) {
+		height: var(--top-h, auto);
+		min-height: 0;
+	}
+	.note:not(.is-top, .is-next) .note-content {
+		visibility: hidden;
+	}
+	.note[hidden] {
+		display: none;
+	}
+	.note-content {
+		display: grid;
+		gap: 0.75rem;
+		align-content: start;
+	}
+	.note-label {
+		margin: 0;
+		font-family: var(--font-mono);
+		font-size: 0.72rem;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: #7a7484;
+	}
+	.note-text,
+	.note blockquote p {
+		margin: 0;
+		font-family: var(--font-display);
+		font-size: clamp(1.15rem, 2.4vw, 1.45rem);
+		line-height: 1.45;
+		text-wrap: pretty;
+	}
+	.note blockquote {
+		position: relative;
+		margin: 0;
+	}
+	.note blockquote p {
+		font-style: italic;
+	}
+	.note.long blockquote p {
+		font-size: clamp(1rem, 1.9vw, 1.12rem);
+		line-height: 1.55;
+	}
+	.note blockquote::before {
+		content: '“';
+		position: absolute;
+		left: -0.55em;
+		top: -0.3em;
+		font-family: var(--font-display);
+		font-size: 3.2rem;
+		line-height: 1;
+		color: var(--c-coral);
+		opacity: 0.6;
+	}
+	.note blockquote footer {
+		margin-top: 0.5rem;
+		font-size: 0.85rem;
+		color: #6a6672;
+	}
+	.note-foot {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
+		margin-top: 0.5rem;
+	}
+	.note-count {
+		font-family: var(--font-mono);
+		font-size: 0.75rem;
+		color: #7a7484;
+	}
+	.bin-it {
+		padding: 0.35rem 0.9rem;
+		border: 2px solid #24222b;
+		border-radius: 999px;
+		background: #fff;
+		color: #24222b;
+		font: inherit;
+		font-size: 0.85rem;
+		font-weight: 600;
+		cursor: pointer;
+		box-shadow: 2px 2px 0 #24222b;
+	}
+	.bin-it:hover {
+		background: var(--c-yellow);
+	}
+	.bin-it:active {
+		translate: 2px 2px;
+		box-shadow: none;
+	}
+	.bin-it:focus-visible {
+		outline: 3px solid var(--focus);
+		outline-offset: 2px;
+	}
+
+	.done {
+		place-self: center;
+		display: grid;
+		justify-items: center;
+		gap: 0.5rem;
+		padding: 2rem;
+		text-align: center;
+		border: 3px dashed var(--border);
+		border-radius: 16px;
+	}
+	.done[hidden] {
+		display: none;
+	}
+	.done-title {
+		margin: 0;
+		font-family: var(--font-display);
+		font-size: 1.5rem;
+	}
+	.done-text {
+		margin: 0 0 0.5rem;
+		color: var(--text-muted);
+	}
+
+	/* ---------- Paper balls (created from JS, so global) ---------- */
+	:global(.paper-ball),
+	:global(.bin-ball) {
+		display: block;
+		border-radius: 47% 53% 44% 56% / 52% 45% 55% 48%;
+		background:
+			linear-gradient(115deg, transparent 38%, rgb(0 0 0 / 0.13) 40%, transparent 43%),
+			linear-gradient(35deg, transparent 55%, rgb(0 0 0 / 0.1) 57%, transparent 60%),
+			linear-gradient(170deg, transparent 22%, rgb(0 0 0 / 0.09) 24%, transparent 27%),
+			radial-gradient(circle at 35% 30%, #fff 0 12%, transparent 45%),
+			radial-gradient(circle at 60% 65%, rgb(0 0 0 / 0.18), transparent 60%),
+			var(--paper, #fffdf7);
+		box-shadow: inset -3px -4px 8px rgb(0 0 0 / 0.15);
+		rotate: var(--spin, 0deg);
+	}
+	.room :global(.paper-ball) {
+		position: absolute;
+		z-index: 100;
+		width: 3.6rem;
+		height: 3.6rem;
+		translate: -50% -50%;
+		pointer-events: none;
+		filter: drop-shadow(0 10px 12px rgb(0 0 0 / 0.25));
+	}
+	.room :global(.paper-ball.is-resting) {
+		pointer-events: auto;
+		touch-action: none;
+		cursor: grab;
+		animation: wobble 2.4s ease-in-out infinite;
+	}
+	@keyframes wobble {
+		0%, 100% { transform: translateY(0); }
+		50% { transform: translateY(-4px); }
+	}
+
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+
+	@media (max-width: 640px) {
+		.pile {
+			padding: 0 0.75rem 1rem 0;
+		}
+		.note {
+			min-height: 12rem;
+		}
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.note {
+			transition: none;
+		}
+		.notes.is-holding .bin-rim,
+		.room :global(.paper-ball.is-resting) {
+			animation: none;
+		}
+	}
+</style>

@@ -1,0 +1,62 @@
+---
+// Cycles light/dark. The initial theme is set by an inline script in Base.astro
+// (before paint) so there is no flash of the wrong theme.
+---
+
+<button class="theme-toggle" type="button" aria-label="Toggle dark mode" data-theme-toggle>
+	<svg class="sun" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+		<circle cx="12" cy="12" r="4.5" fill="currentColor"></circle>
+		<g stroke="currentColor" stroke-width="2" stroke-linecap="round">
+			<path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path>
+		</g>
+	</svg>
+	<svg class="moon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+		<path fill="currentColor" d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"></path>
+	</svg>
+</button>
+
+<script>
+	const button = document.querySelector<HTMLButtonElement>('[data-theme-toggle]');
+	const current = () =>
+		document.documentElement.dataset.theme ??
+		(matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+
+	button?.addEventListener('click', () => {
+		const next = current() === 'dark' ? 'light' : 'dark';
+		document.documentElement.dataset.theme = next;
+		try {
+			localStorage.setItem('theme', next);
+		} catch {}
+	});
+</script>
+
+<style>
+	.theme-toggle {
+		display: inline-grid;
+		place-items: center;
+		width: 2.5rem;
+		height: 2.5rem;
+		border-radius: 999px;
+		border: 1px solid var(--border);
+		background: var(--surface);
+		color: var(--text);
+		cursor: pointer;
+	}
+	.moon {
+		display: none;
+	}
+	:global(:root[data-theme='dark']) .sun {
+		display: none;
+	}
+	:global(:root[data-theme='dark']) .moon {
+		display: block;
+	}
+	@media (prefers-color-scheme: dark) {
+		:global(:root:not([data-theme='light'])) .sun {
+			display: none;
+		}
+		:global(:root:not([data-theme='light'])) .moon {
+			display: block;
+		}
+	}
+</style>

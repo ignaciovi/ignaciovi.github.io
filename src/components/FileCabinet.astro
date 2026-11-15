@@ -1,0 +1,723 @@
+---
+// Experience as a filing cabinet: folders sit in the drawer with the company on the tab.
+// Drag one onto the desk (or click it) to open it; drag it back (or "Put back") to file it away.
+import { EXPERIENCE, EDUCATION, type Accent } from '../data';
+
+type Entry = {
+	id: string;
+	tab: string;
+	title: string;
+	meta: string;
+	accent: Accent;
+	summary: string;
+	highlights: string[];
+	stack: string[];
+};
+
+const entries: Entry[] = [
+	...EXPERIENCE.map((e) => ({
+		id: e.id,
+		tab: e.company,
+		title: e.role,
+		meta: `${e.dates} · ${e.place}`,
+		accent: e.accent,
+		summary: e.summary,
+		highlights: e.highlights,
+		stack: e.stack,
+	})),
+	{
+		id: 'education',
+		tab: 'Education',
+		title: 'Engineering → Data Science',
+		meta: '2012 – 2018 · Madrid & Glasgow',
+		accent: 'yellow',
+		summary: 'Electromechanical engineering in Madrid, then a Data Science MSc in Glasgow on a Data Lab scholarship.',
+		highlights: EDUCATION.map((ed) => `${ed.studyType} ${ed.area}, ${ed.institution} (${ed.dates}). ${ed.note}`),
+		stack: [],
+	},
+];
+---
+
+<div class="cabinet" data-cabinet>
+	<div class="drawer" data-drawer>
+		<div class="folders" role="list">
+			{
+				entries.map((e, i) => (
+					<div role="listitem" class="slot">
+						<button
+							type="button"
+							class="folder"
+							data-folder={e.id}
+							aria-controls={`dossier-${e.id}`}
+							aria-expanded="false"
+							style={`--a: var(--c-${e.accent}); --tab-offset: ${(i % 3) * 22}%`}
+						>
+							<span class="tab">{e.tab}</span>
+							<span class="folder-body">
+								<span class="folder-role">{e.title}</span>
+								<span class="folder-meta">{e.meta.split(' · ')[0]}</span>
+							</span>
+						</button>
+					</div>
+				))
+			}
+		</div>
+		<div class="drawer-front" aria-hidden="true">
+			<span class="label-holder">EXPERIENCE · A–Z</span>
+			<span class="handle"></span>
+		</div>
+	</div>
+
+	<div class="desk" data-desk>
+		<div class="desk-stack">
+			<p class="desk-empty" data-desk-empty>
+				<span class="desk-empty-arrow" aria-hidden="true">↑</span>
+				Drag a folder onto the desk<br /><span class="muted"
+					>or just <span class="verb-click">click</span><span class="verb-tap">tap</span> one</span
+				>
+			</p>
+			{
+				entries.map((e) => (
+					<article
+						class="dossier"
+						id={`dossier-${e.id}`}
+						data-dossier={e.id}
+						hidden
+						style={`--a: var(--c-${e.accent})`}
+						aria-labelledby={`dossier-title-${e.id}`}
+					>
+						<div class="dossier-head" data-grip title="Drag me back to the drawer">
+							<span class="tab">{e.tab}</span>
+							<button type="button" class="putback" data-putback>
+								Put back ↑
+							</button>
+						</div>
+						<div class="paper">
+							<p class="paper-meta">{e.meta}</p>
+							<h3 id={`dossier-title-${e.id}`} tabindex="-1">
+								{e.tab} <span>· {e.title}</span>
+							</h3>
+							<p class="paper-summary">{e.summary}</p>
+							<ul class="paper-list">
+								{e.highlights.map((h) => (
+									<li>{h}</li>
+								))}
+							</ul>
+							{e.stack.length > 0 && (
+								<p class="chips">
+									{e.stack.map((s) => (
+										<span>{s}</span>
+									))}
+								</p>
+							)}
+							<span class="stamp" aria-hidden="true">
+								Reviewed ✓
+							</span>
+						</div>
+					</article>
+				))
+			}
+		</div>
+	</div>
+</div>
+
+<script>
+	const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+	const EASE = 'cubic-bezier(.2,.8,.2,1)';
+	const DRAG_THRESHOLD = 6;
+
+	document.querySelectorAll<HTMLElement>('[data-cabinet]').forEach((cabinet) => {
+		const drawer = cabinet.querySelector<HTMLElement>('[data-drawer]')!;
+		const desk = cabinet.querySelector<HTMLElement>('[data-desk]')!;
+		const empty = cabinet.querySelector<HTMLElement>('[data-desk-empty]')!;
+		const folder = (id: string) => cabinet.querySelector<HTMLButtonElement>(`[data-folder="${id}"]`)!;
+		const dossier = (id: string) => cabinet.querySelector<HTMLElement>(`[data-dossier="${id}"]`)!;
+		let openId: string | null = null;
+
+		const isOver = (el: HTMLElement, x: number, y: number) => {
+			const r = el.getBoundingClientRect();
+			return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+		};
+
+		function open(id: string, from?: DOMRect, focus = false) {
+			if (openId === id) return;
+			if (openId) close(openId);
+			openId = id;
+			const f = folder(id);
+			const d = dossier(id);
+			f.classList.add('is-out');
+			f.setAttribute('aria-expanded', 'true');
+			empty.hidden = true;
+			d.hidden = false;
+			desk.classList.add('has-file');
+			if (!reduceMotion) {
+				const to = d.getBoundingClientRect();
+				const start = from ?? f.getBoundingClientRect();
+				const dx = start.left - to.left;
+				const dy = start.top - to.top;
+				const s = Math.min(1, start.width / to.width);
+				d.animate(
+					[
+						{ transform: `translate(${dx}px, ${dy}px) scale(${s}) rotate(-6deg)`, opacity: 0.4 },
+						{ transform: 'translate(0, 12px) scale(1.02) rotate(1deg)', opacity: 1, offset: 0.75 },
+						{ transform: 'none', opacity: 1 },
+					],
+					{ duration: 520, easing: EASE },
+				);
+			}
+			if (focus) d.querySelector<HTMLElement>('h3')?.focus({ preventScroll: true });
+			// On small screens the opened file can land below the fold — bring its top into view.
+			const top = desk.getBoundingClientRect().top;
+			if (top < 0 || top > innerHeight * 0.6) {
+				desk.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+			}
+		}
+
+		function close(id: string, focusFolder = false) {
+			const f = folder(id);
+			const d = dossier(id);
+			if (openId === id) openId = null;
+			const finish = () => {
+				d.hidden = true;
+				d.style.translate = '';
+				d.classList.remove('is-leaving');
+				f.classList.remove('is-out');
+				f.setAttribute('aria-expanded', 'false');
+				if (!openId) {
+					empty.hidden = false;
+					desk.classList.remove('has-file');
+				}
+				if (focusFolder) f.focus({ preventScroll: true });
+			};
+			if (reduceMotion) return finish();
+			d.classList.add('is-leaving');
+			const from = d.getBoundingClientRect();
+			const to = f.getBoundingClientRect();
+			const anim = d.animate(
+				[
+					{ transform: 'none', opacity: 1 },
+					{
+						transform: `translate(${to.left - from.left}px, ${to.top - from.top}px) scale(${to.width / from.width}) rotate(-4deg)`,
+						opacity: 0,
+					},
+				],
+				{ duration: 420, easing: EASE },
+			);
+			anim.onfinish = finish;
+		}
+
+		// ---- Folders: click to open, or drag a copy onto the desk ----
+		cabinet.querySelectorAll<HTMLButtonElement>('[data-folder]').forEach((f) => {
+			const id = f.dataset.folder!;
+			let startX = 0;
+			let startY = 0;
+			let ghost: HTMLElement | null = null;
+			let origin: DOMRect | null = null;
+			let pointerId: number | null = null;
+			let suppressClick = false;
+
+			f.addEventListener('pointerdown', (e) => {
+				if (e.button !== 0 || f.classList.contains('is-out')) return;
+				pointerId = e.pointerId;
+				startX = e.clientX;
+				startY = e.clientY;
+			});
+
+			f.addEventListener('pointermove', (e) => {
+				if (pointerId !== e.pointerId) return;
+				const dx = e.clientX - startX;
+				const dy = e.clientY - startY;
+				if (!ghost) {
+					if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+					f.setPointerCapture(e.pointerId);
+					origin = f.getBoundingClientRect();
+					ghost = f.cloneNode(true) as HTMLElement;
+					ghost.removeAttribute('data-folder');
+					ghost.classList.add('ghost');
+					Object.assign(ghost.style, {
+						left: `${origin.left}px`,
+						top: `${origin.top}px`,
+						width: `${origin.width}px`,
+						height: `${origin.height}px`,
+					});
+					document.body.append(ghost);
+					f.classList.add('is-dragging');
+					cabinet.classList.add('is-dragging');
+				}
+				ghost.style.transform = `translate(${dx}px, ${dy}px) rotate(${Math.max(-8, Math.min(8, dx / 25))}deg)`;
+				desk.classList.toggle('is-target', isOver(desk, e.clientX, e.clientY));
+			});
+
+			const end = (e: PointerEvent) => {
+				if (pointerId !== e.pointerId) return;
+				pointerId = null;
+				if (!ghost) return;
+				suppressClick = true;
+				const g = ghost;
+				ghost = null;
+				const dropped = e.type === 'pointerup' && isOver(desk, e.clientX, e.clientY);
+				desk.classList.remove('is-target');
+				cabinet.classList.remove('is-dragging');
+				f.classList.remove('is-dragging');
+				if (dropped) {
+					const rect = g.getBoundingClientRect();
+					g.remove();
+					open(id, rect);
+				} else if (reduceMotion) {
+					g.remove();
+				} else {
+					g.animate([{ transform: g.style.transform }, { transform: 'none' }], { duration: 250, easing: EASE }).onfinish = () =>
+						g.remove();
+				}
+			};
+			f.addEventListener('pointerup', end);
+			f.addEventListener('pointercancel', end);
+
+			f.addEventListener('click', (e) => {
+				if (suppressClick) {
+					suppressClick = false;
+					return;
+				}
+				if (openId === id) close(id);
+				else open(id, undefined, e.detail === 0);
+			});
+		});
+
+		// ---- Open dossiers: "Put back", or drag by the header back to the drawer ----
+		cabinet.querySelectorAll<HTMLElement>('[data-dossier]').forEach((d) => {
+			const id = d.dataset.dossier!;
+			const grip = d.querySelector<HTMLElement>('[data-grip]')!;
+			d.querySelector('[data-putback]')!.addEventListener('click', () => close(id, true));
+
+			let startX = 0;
+			let startY = 0;
+			let dragging = false;
+			let active = false;
+
+			grip.addEventListener('pointerdown', (e) => {
+				if (e.button !== 0 || (e.target as HTMLElement).closest('button')) return;
+				active = true;
+				dragging = false;
+				startX = e.clientX;
+				startY = e.clientY;
+				grip.setPointerCapture(e.pointerId);
+			});
+			grip.addEventListener('pointermove', (e) => {
+				if (!active) return;
+				const dx = e.clientX - startX;
+				const dy = e.clientY - startY;
+				if (!dragging && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+				dragging = true;
+				d.classList.add('is-held');
+				d.style.translate = `${dx}px ${dy}px`;
+				drawer.classList.toggle('is-target', isOver(drawer, e.clientX, e.clientY));
+			});
+			const end = (e: PointerEvent) => {
+				if (!active) return;
+				active = false;
+				d.classList.remove('is-held');
+				drawer.classList.remove('is-target');
+				if (!dragging) return;
+				if (e.type === 'pointerup' && isOver(drawer, e.clientX, e.clientY)) {
+					close(id);
+				} else {
+					const current = d.style.translate;
+					d.style.translate = '';
+					if (!reduceMotion) d.animate([{ translate: current }, { translate: '0 0' }], { duration: 300, easing: EASE });
+				}
+			};
+			grip.addEventListener('pointerup', end);
+			grip.addEventListener('pointercancel', end);
+		});
+	});
+</script>
+
+<style>
+	.cabinet {
+		display: grid;
+		gap: 1.75rem;
+		user-select: none;
+	}
+
+	/* ---------- Drawer ---------- */
+	.drawer {
+		position: relative;
+		border-radius: 18px;
+		padding: 1.5rem 1.25rem 0;
+		background: linear-gradient(180deg, #5b6170, #464b58);
+		box-shadow: inset 0 10px 24px rgb(0 0 0 / 0.35), var(--shadow);
+		transition: box-shadow 0.2s ease;
+	}
+	.drawer.is-target {
+		box-shadow: inset 0 10px 24px rgb(0 0 0 / 0.35), 0 0 0 4px var(--c-yellow);
+	}
+	.folders {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+		gap: 0.75rem;
+		align-items: end;
+	}
+	.slot {
+		position: relative;
+		/* the empty slot outline left behind when a folder is out */
+		border-radius: 8px;
+	}
+	.folder {
+		all: unset;
+		box-sizing: border-box;
+		display: block;
+		width: 100%;
+		cursor: grab;
+		touch-action: none;
+		transition:
+			transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1),
+			opacity 0.2s ease;
+		transform: translateY(14px);
+	}
+	.folder:hover,
+	.folder:focus-visible {
+		transform: translateY(0);
+	}
+	.folder:focus-visible .folder-body {
+		outline: 3px solid var(--focus);
+		outline-offset: 2px;
+	}
+	.folder:active {
+		cursor: grabbing;
+	}
+	.folder.is-dragging,
+	.folder.is-out {
+		opacity: 0.18;
+		transform: translateY(34px);
+	}
+	.folder.is-out {
+		cursor: pointer;
+	}
+	.tab {
+		display: inline-block;
+		margin-left: var(--tab-offset, 0);
+		padding: 0.25rem 0.8rem 0.3rem;
+		border-radius: 8px 8px 0 0;
+		background: var(--a);
+		color: #fff;
+		font-size: 0.85rem;
+		font-weight: 700;
+		letter-spacing: 0.01em;
+		white-space: nowrap;
+	}
+	.folder-body {
+		display: grid;
+		gap: 0.15rem;
+		min-height: 5.5rem;
+		padding: 0.7rem 0.8rem 1.6rem;
+		border-radius: 0 8px 4px 4px;
+		background: #f4dfa8;
+		color: #3a3020;
+		border-top: 4px solid var(--a);
+		box-shadow: 0 -2px 6px rgb(0 0 0 / 0.15);
+	}
+	.folder-role {
+		font-weight: 650;
+		font-size: 0.9rem;
+		line-height: 1.3;
+	}
+	.folder-meta {
+		font-size: 0.75rem;
+		opacity: 0.75;
+	}
+	.ghost {
+		all: unset;
+		position: fixed;
+		z-index: 1000;
+		display: block;
+		pointer-events: none;
+		filter: drop-shadow(0 18px 24px rgb(0 0 0 / 0.3));
+	}
+	.drawer-front {
+		position: relative;
+		z-index: 2;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.6rem;
+		margin: -0.75rem -1.25rem 0;
+		padding: 0.8rem 1rem 1rem;
+		border-radius: 0 0 18px 18px;
+		background: linear-gradient(180deg, #7b8191, #636978);
+		border-top: 2px solid rgb(255 255 255 / 0.15);
+	}
+	.label-holder {
+		padding: 0.15rem 0.9rem;
+		border: 2px solid #c9ccd4;
+		border-radius: 4px;
+		background: #fdfbf5;
+		color: #333;
+		font-family: var(--font-mono);
+		font-size: 0.72rem;
+		letter-spacing: 0.1em;
+	}
+	.handle {
+		width: 7rem;
+		height: 0.7rem;
+		border-radius: 999px;
+		background: linear-gradient(180deg, #d9dce3, #9aa0ad);
+		box-shadow: 0 2px 3px rgb(0 0 0 / 0.35);
+	}
+
+	/* ---------- Desk ---------- */
+	.desk {
+		position: relative;
+		padding: clamp(1rem, 3vw, 2rem);
+		border-radius: 20px;
+		background:
+			repeating-linear-gradient(92deg, rgb(255 255 255 / 0.04) 0 3px, transparent 3px 18px),
+			linear-gradient(160deg, #b98455, #9a6a40);
+		box-shadow: inset 0 0 0 3px rgb(0 0 0 / 0.08), var(--shadow);
+		transition: box-shadow 0.2s ease;
+	}
+	.desk.is-target {
+		box-shadow: inset 0 0 0 3px rgb(0 0 0 / 0.08), 0 0 0 4px var(--c-yellow), var(--shadow);
+	}
+	.desk-stack {
+		display: grid;
+		min-height: 18rem;
+	}
+	.desk-stack > * {
+		grid-area: 1 / 1;
+	}
+	.desk-empty {
+		place-self: center;
+		margin: 0;
+		padding: 2rem 2.5rem;
+		border: 3px dashed rgb(255 255 255 / 0.55);
+		border-radius: 16px;
+		text-align: center;
+		color: #fff;
+		font-family: var(--font-display);
+		font-size: 1.3rem;
+		line-height: 1.4;
+	}
+	.desk-empty .muted {
+		color: rgb(255 255 255 / 0.75);
+		font-family: var(--font-body);
+		font-size: 0.9rem;
+	}
+	.desk-empty-arrow {
+		display: block;
+		font-size: 1.6rem;
+		animation: bob 1.6s ease-in-out infinite;
+	}
+	@keyframes bob {
+		50% {
+			translate: 0 -6px;
+		}
+	}
+	.cabinet.is-dragging .desk-empty {
+		border-color: var(--c-yellow);
+	}
+
+	.dossier {
+		position: relative;
+		max-width: 46rem;
+		width: 100%;
+		justify-self: center;
+		align-self: start;
+		rotate: -0.6deg;
+		filter: drop-shadow(0 14px 20px rgb(0 0 0 / 0.28));
+		user-select: text;
+	}
+	.dossier[hidden] {
+		display: none;
+	}
+	.dossier.is-held {
+		z-index: 5;
+		filter: drop-shadow(0 26px 30px rgb(0 0 0 / 0.35));
+	}
+	.dossier.is-leaving {
+		pointer-events: none;
+	}
+	.dossier-head {
+		display: flex;
+		align-items: end;
+		justify-content: space-between;
+		cursor: grab;
+		touch-action: none;
+		user-select: none;
+	}
+	.dossier.is-held .dossier-head {
+		cursor: grabbing;
+	}
+	.dossier-head .tab {
+		font-size: 0.95rem;
+		padding: 0.35rem 1rem;
+	}
+	.putback {
+		margin-bottom: 0.35rem;
+		padding: 0.3rem 0.8rem;
+		border: 0;
+		border-radius: 999px;
+		background: rgb(255 255 255 / 0.9);
+		color: #333;
+		font: inherit;
+		font-size: 0.8rem;
+		font-weight: 600;
+		cursor: pointer;
+	}
+	.putback:hover {
+		background: #fff;
+	}
+	.paper {
+		position: relative;
+		padding: clamp(1.2rem, 3vw, 2rem);
+		border-top: 6px solid var(--a);
+		border-radius: 0 10px 10px 10px;
+		background:
+			linear-gradient(transparent 0 calc(100% - 1px), rgb(0 0 0 / 0.04) 0) 0 0 / 100% 1.65em,
+			#fffdf7;
+		color: #24222b;
+	}
+	.paper-meta {
+		margin: 0 0 0.25rem;
+		font-family: var(--font-mono);
+		font-size: 0.78rem;
+		color: #6a6672;
+	}
+	.paper h3 {
+		font-size: clamp(1.3rem, 3vw, 1.7rem);
+		margin-bottom: 0.6rem;
+	}
+	.paper h3 span {
+		font-family: var(--font-body);
+		font-size: 0.6em;
+		font-weight: 500;
+		color: #6a6672;
+	}
+	.paper h3:focus {
+		outline: none;
+	}
+	.paper-summary {
+		font-weight: 550;
+	}
+	.paper-list {
+		padding-left: 1.2rem;
+		margin: 0 0 1rem;
+	}
+	.paper-list li {
+		margin-bottom: 0.4rem;
+	}
+	.paper-list li::marker {
+		color: var(--a);
+	}
+	.chips {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.4rem;
+		margin: 0;
+	}
+	.chips span {
+		padding: 0.15rem 0.65rem;
+		border-radius: 999px;
+		background: color-mix(in srgb, var(--a) 14%, #fff);
+		color: #333;
+		font-size: 0.78rem;
+		font-weight: 600;
+	}
+	.stamp {
+		position: absolute;
+		right: 1.25rem;
+		top: 1.1rem;
+		padding: 0.1rem 0.6rem;
+		border: 3px solid var(--a);
+		border-radius: 6px;
+		color: var(--a);
+		font-family: var(--font-mono);
+		font-size: 0.75rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		rotate: 8deg;
+		opacity: 0.75;
+	}
+
+	.verb-tap {
+		display: none;
+	}
+	@media (hover: none) {
+		.verb-click {
+			display: none;
+		}
+		.verb-tap {
+			display: inline;
+		}
+	}
+
+	/* Phones: minimal folders — just the tab and the dates, three to a row — so the whole
+	   drawer fits in a couple of rows and the desk stays on screen right underneath. */
+	@media (max-width: 640px) {
+		.cabinet {
+			gap: 1rem;
+		}
+		.drawer {
+			padding: 0.9rem 0.75rem 0;
+		}
+		.folders {
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+			gap: 0.9rem 0.45rem;
+		}
+		.folder {
+			transform: translateY(6px);
+		}
+		.folder.is-dragging,
+		.folder.is-out {
+			transform: translateY(16px);
+		}
+		.folder .tab {
+			display: block;
+			margin-left: 0;
+			max-width: 85%;
+			padding: 0.2rem 0.5rem;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			font-size: 0.72rem;
+		}
+		.folder-body {
+			min-height: 0;
+			padding: 0.35rem 0.5rem 0.8rem;
+			border-top-width: 3px;
+		}
+		.folder-role {
+			display: none;
+		}
+		.folder-meta {
+			font-size: 0.68rem;
+		}
+		.drawer-front {
+			flex-direction: row;
+			justify-content: center;
+			gap: 0.9rem;
+			margin: -0.6rem -0.75rem 0;
+			padding: 0.55rem 1rem 0.65rem;
+		}
+		.handle {
+			width: 4rem;
+			height: 0.55rem;
+		}
+		.desk-stack {
+			min-height: 10rem;
+		}
+		.desk-empty {
+			padding: 1.25rem 1.5rem;
+			font-size: 1.1rem;
+		}
+		.stamp {
+			display: none;
+		}
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.desk-empty-arrow {
+			animation: none;
+		}
+		.folder {
+			transition: none;
+		}
+	}
+</style>

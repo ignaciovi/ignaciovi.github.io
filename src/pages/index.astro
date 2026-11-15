@@ -1,0 +1,263 @@
+---
+import Base from '../layouts/Base.astro';
+import HeroTitle from '../components/HeroTitle.astro';
+import SectionHeading from '../components/SectionHeading.astro';
+import FileCabinet from '../components/FileCabinet.astro';
+import ProjectArt from '../components/ProjectArt.astro';
+import LoopStation from '../components/LoopStation.astro';
+import NotesBin from '../components/NotesBin.astro';
+import { SITE } from '../site';
+import { PROJECTS } from '../data';
+
+const statusClass = { Live: 'live', Building: 'building', Idea: 'idea' } as const;
+---
+
+<Base>
+	<!-- HERO -->
+	<section class="hero container">
+		<p class="eyebrow">Data engineer · {SITE.location}</p>
+		<HeroTitle />
+		<p class="lede">
+			I enjoying finding problems that data can solve. I have experience creating pipelines, finding and documenting business knowledge, finding the right actionable metrics and others.
+		</p>
+		<div class="ctas">
+			<a class="btn btn-primary" href="#experience">My experience ↓</a>
+			<a class="btn btn-ghost" href="#projects">See what I build</a>
+		</div>
+		<div class="doodles" aria-hidden="true">
+			<span class="d d1">✦</span>
+			<span class="d d2">●</span>
+			<span class="d d3">▲</span>
+			<span class="d d4">✳</span>
+		</div>
+	</section>
+
+	<!-- EXPERIENCE -->
+	<section class="section container" id="experience">
+		<SectionHeading index="01" kicker="Where I've worked" title="Experience" accent="coral" />
+		<p class="intro muted">
+			From a startup where I was the whole data team to enterprise banking. Pull a folder out of the drawer and drop it on the desk
+			to read the file.
+		</p>
+		<FileCabinet />
+	</section>
+
+	<!-- PROJECTS -->
+	<section class="section container" id="projects">
+		<SectionHeading index="02" kicker="Things I build for fun" title="Projects" accent="blue" />
+		<p class="intro muted">
+			I leverage AI to build all the things that I find useful or interesting. I like finding playful, visual ways to explore information.
+		</p>
+		<ul class="projects">
+			{
+				PROJECTS.map((p) => (
+					<li class="project" style={`--a: var(--c-${p.accent})`}>
+						<div class="project-art">
+							{p.image ? <img src={p.image} alt={`Screenshot of ${p.title}`} loading="lazy" /> : <ProjectArt art={p.art} />}
+						</div>
+						<div class="project-text">
+							<span class={`status ${statusClass[p.status]}`}>{p.status}</span>
+							<h3>{p.url ? <a href={p.url} target="_blank" rel="noopener">{p.title} ↗</a> : p.title}</h3>
+							<p class="muted">{p.blurb}</p>
+							<p class="chips">
+								{p.tags.map((t) => (
+									<span>{t}</span>
+								))}
+							</p>
+						</div>
+					</li>
+				))
+			}
+		</ul>
+		<p class="more"><a href={SITE.links.github}>More on GitHub →</a></p>
+	</section>
+
+	<!-- HOW I WORK -->
+	<section class="section container" id="values">
+		<SectionHeading index="03" kicker="Notes I keep coming back to" title="How I work" accent="green" />
+		<p class="intro muted">
+			A pile of notes from my notebook: how I work, what I enjoy, and a few quotes I've picked up along the way. One at a time, in a random order.
+		</p>
+		<NotesBin />
+	</section>
+
+	{/* ABOUT & MUSIC: hidden for now, uncomment to bring it back
+	<section class="section container" id="about">
+		<SectionHeading index="04" kicker="Off the clock" title="About me & music" accent="purple" />
+		<div class="about">
+			<div class="about-text">
+				<p>
+					I studied electromechanical engineering in Madrid, did a Data Science MSc in Glasgow on a Data Lab scholarship, then worked
+					as a full-stack developer before moving into data. That mix is why I care about the whole journey: the people, the data,
+					and the thing you build on top.
+				</p>
+				<p>
+					I'm an Advanced certified diver, and once spent two months working at a scuba diving centre in Malta. 🤿
+				</p>
+				<h3>🎸 Music</h3>
+				<p>
+					I play guitar and sing at open mics, building songs live with a <strong>Boss RC-500</strong> loop pedal. I layer one idea
+					on top of another until it turns into something, which is pretty much how I like to work too.
+				</p>
+				<p class="looking">
+					<strong>What I'm looking for:</strong> a small, curious team where I can own problems end to end: talk to the people, shape
+					the solution, build it, and see it make a difference.
+				</p>
+			</div>
+			<LoopStation />
+		</div>
+	</section>
+	*/}
+</Base>
+
+<style>
+	/* ---------- Hero ---------- */
+	.hero {
+		position: relative;
+		padding-block: clamp(3rem, 10vw, 7rem) clamp(2rem, 6vw, 4rem);
+	}
+	.lede {
+		font-size: clamp(1.1rem, 2vw, 1.3rem);
+		color: var(--text-muted);
+		max-width: 38rem;
+	}
+	.ctas {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.75rem;
+		margin-top: 1.75rem;
+	}
+	.doodles .d {
+		position: absolute;
+		font-size: 1.6rem;
+		pointer-events: none;
+		animation: float 6s ease-in-out infinite;
+	}
+	.d1 { top: 18%; right: 8%; color: var(--c-yellow); font-size: 2.6rem !important; }
+	.d2 { top: 52%; right: 20%; color: var(--c-coral); animation-delay: -2s !important; }
+	.d3 { top: 30%; right: 30%; color: var(--c-teal); rotate: 12deg; animation-delay: -4s !important; }
+	.d4 { bottom: 12%; right: 6%; color: var(--c-purple); font-size: 2rem !important; animation-delay: -1s !important; }
+	@keyframes float {
+		50% { translate: 0 -12px; }
+	}
+	@media (max-width: 860px) {
+		.doodles { display: none; }
+	}
+
+	.intro {
+		max-width: 44rem;
+		font-size: 1.1rem;
+		margin-bottom: 2rem;
+	}
+
+	/* ---------- Shared bits ---------- */
+	.chips {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.4rem;
+		margin: 0;
+	}
+	.chips span {
+		font-size: 0.78rem;
+		font-weight: 600;
+		padding: 0.15rem 0.65rem;
+		border-radius: 999px;
+		background: var(--surface-2);
+		color: var(--text-muted);
+	}
+	.status {
+		display: inline-block;
+		font-size: 0.72rem;
+		font-weight: 700;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		padding: 0.15rem 0.6rem;
+		border-radius: 999px;
+		border: 1.5px solid currentColor;
+		margin-bottom: 0.6rem;
+	}
+	.status.live { color: var(--status-live); }
+	.status.building { color: var(--status-building); }
+	.status.idea { color: var(--status-idea); }
+
+	/* ---------- Projects ---------- */
+	.projects {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+		display: grid;
+		gap: 1.25rem;
+	}
+	.project {
+		display: grid;
+		grid-template-columns: minmax(0, 20rem) 1fr;
+		gap: clamp(1rem, 3vw, 2rem);
+		align-items: center;
+		padding: 0.9rem;
+		border-radius: 20px;
+		background: var(--surface);
+		border: 2px solid var(--border);
+		transition:
+			transform 0.2s ease,
+			border-color 0.2s ease,
+			box-shadow 0.2s ease;
+	}
+	.project:hover {
+		transform: translate(-2px, -2px);
+		border-color: var(--text);
+		box-shadow: var(--shadow-pop);
+	}
+	.project-art {
+		aspect-ratio: 16 / 10;
+		border-radius: 14px;
+		overflow: hidden;
+		background: color-mix(in srgb, var(--a) 16%, var(--surface));
+	}
+	.project-art img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+	.project-text h3 {
+		margin-bottom: 0.35rem;
+	}
+	.project-text h3 a {
+		color: inherit;
+		text-decoration-color: var(--a);
+		text-decoration-thickness: 3px;
+	}
+	.project-text p.muted {
+		max-width: 38rem;
+	}
+	.more {
+		margin-top: 1.25rem;
+		font-weight: 600;
+	}
+
+	/* ---------- About ---------- */
+	.about {
+		display: grid;
+		grid-template-columns: 1.3fr 1fr;
+		gap: 2.5rem;
+		align-items: start;
+	}
+	.about-text h3 {
+		margin-top: 1.75rem;
+	}
+	.looking {
+		padding: 1rem 1.2rem;
+		border-radius: var(--radius);
+		background: var(--surface-2);
+		border-left: 5px solid var(--c-purple);
+	}
+
+	@media (max-width: 760px) {
+		.project,
+		.about {
+			grid-template-columns: 1fr;
+		}
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.doodles .d { animation: none; }
+	}
+</style>

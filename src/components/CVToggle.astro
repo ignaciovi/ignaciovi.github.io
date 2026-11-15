@@ -1,0 +1,58 @@
+---
+// Header button that flips the whole page into the machine-readable CV (see MachineCV.astro).
+---
+
+<button type="button" class="cv-toggle" data-cv-toggle aria-pressed="false">
+	<span class="when-human"><span class="icon" aria-hidden="true">{'</>'}</span> Machine-readable CV</span>
+	<span class="when-cv"><span class="icon" aria-hidden="true">☺</span> Human version</span>
+</button>
+
+<style>
+	.cv-toggle {
+		display: inline-flex;
+		align-items: center;
+		height: 2.5rem;
+		padding: 0 0.95rem;
+		border: 2px solid var(--text);
+		border-radius: 999px;
+		background: var(--surface);
+		color: var(--text);
+		font: inherit;
+		font-size: 0.85rem;
+		font-weight: 650;
+		white-space: nowrap;
+		cursor: pointer;
+		box-shadow: 3px 3px 0 var(--text);
+		transition:
+			transform 0.12s ease,
+			box-shadow 0.12s ease;
+	}
+	.cv-toggle:hover {
+		transform: translate(-1px, -1px);
+		box-shadow: 4px 4px 0 var(--text);
+	}
+	.cv-toggle:active {
+		transform: translate(2px, 2px);
+		box-shadow: 1px 1px 0 var(--text);
+	}
+	.icon {
+		font-family: var(--font-mono);
+		margin-right: 0.4rem;
+		color: var(--c-coral);
+	}
+	.when-cv {
+		display: none;
+	}
+	.cv-toggle[aria-pressed='true'] .when-human {
+		display: none;
+	}
+	.cv-toggle[aria-pressed='true'] .when-cv {
+		display: inline;
+	}
+	@media (max-width: 520px) {
+		.cv-toggle {
+			font-size: 0.78rem;
+			padding: 0 0.7rem;
+		}
+	}
+</style>

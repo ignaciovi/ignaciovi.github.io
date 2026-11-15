@@ -1,0 +1,171 @@
+---
+// Simple drawn illustrations for projects that don't have a screenshot yet.
+import type { ProjectArt } from '../data';
+interface Props {
+	art: ProjectArt;
+}
+const { art } = Astro.props;
+---
+
+<svg class="art" viewBox="0 0 320 200" role="img" aria-hidden="true" fill="none" stroke-linecap="round" stroke-linejoin="round">
+	{
+		art === 'tube' && (
+			<g stroke-width="9">
+				<path d="M-10 70 H120 L170 120 H330" stroke="var(--c-coral)" />
+				<path d="M90 -10 V60 L150 120 V210" stroke="var(--c-blue)" />
+				<path d="M-10 160 H90 L150 100 L200 50 H330" stroke="var(--c-green)" />
+				<g fill="#fff" stroke="var(--text)" stroke-width="4">
+					<circle cx="90" cy="70" r="9" />
+					<circle cx="150" cy="120" r="9" />
+					<circle cx="200" cy="50" r="7" />
+					<circle cx="250" cy="120" r="7" />
+					<circle cx="40" cy="160" r="7" />
+				</g>
+				<rect x="226" y="38" width="38" height="22" rx="6" fill="var(--c-yellow)" stroke="var(--text)" stroke-width="3" class="bob" />
+			</g>
+		)
+	}
+	{
+		art === 'river' && (
+			<g>
+				<path d="M-10 90 C 50 70, 90 110, 160 90 S 270 70, 330 95" stroke="var(--c-teal)" stroke-width="14" opacity=".35" />
+				<path d="M-10 130 C 60 110, 100 150, 170 128 S 280 110, 330 135" stroke="var(--c-teal)" stroke-width="14" opacity=".55" />
+				<path d="M-10 170 C 60 150, 110 190, 180 168 S 280 150, 330 175" stroke="var(--c-teal)" stroke-width="14" opacity=".8" />
+				<g stroke="var(--text)" stroke-width="3" fill="#fff">
+					<rect x="60" y="100" width="44" height="30" rx="3" transform="rotate(-8 82 115)" class="bob" />
+					<rect x="190" y="132" width="44" height="30" rx="3" transform="rotate(6 212 147)" />
+				</g>
+				<path d="M68 112 h26 M68 120 h18" stroke="var(--text)" stroke-width="2.5" transform="rotate(-8 82 115)" />
+				<path d="M198 144 h26 M198 152 h18" stroke="var(--text)" stroke-width="2.5" transform="rotate(6 212 147)" />
+				<path d="M300 -5 Q 250 20 215 125" stroke="var(--text)" stroke-width="2" />
+				<path d="M215 125 q -6 8 2 12" stroke="var(--text)" stroke-width="2.5" />
+			</g>
+		)
+	}
+	{
+		art === 'tracker' && (
+			<g stroke="var(--text)" stroke-width="3">
+				<rect x="70" y="40" width="180" height="130" rx="12" fill="var(--surface)" />
+				<path d="M70 72 H250" />
+				<path d="M110 28 v24 M210 28 v24" stroke-width="5" />
+				{Array.from({ length: 12 }, (_, i) => (
+					<rect
+						x={88 + (i % 4) * 38}
+						y={84 + Math.floor(i / 4) * 27}
+						width="28"
+						height="19"
+						rx="4"
+						fill={[1, 4, 6, 11].includes(i) ? 'var(--c-green)' : 'none'}
+						stroke-width="2"
+					/>
+				))}
+				<path d="M240 120 c 0 -18 26 -18 26 0 c 0 12 -13 26 -13 26 s -13 -14 -13 -26 z" fill="var(--c-coral)" class="bob" />
+			</g>
+		)
+	}
+	{
+		art === 'enricher' && (
+			<g stroke="var(--text)" stroke-width="3">
+				<path d="M160 100 L80 55 M160 100 L70 140 M160 100 L240 50 M160 100 L250 145 M160 100 L160 175" stroke-width="2.5" />
+				<g fill="var(--surface)">
+					<circle cx="80" cy="55" r="14" />
+					<circle cx="70" cy="140" r="14" />
+					<circle cx="240" cy="50" r="14" />
+					<circle cx="250" cy="145" r="14" />
+					<circle cx="160" cy="175" r="11" />
+				</g>
+				<circle cx="160" cy="100" r="26" fill="var(--c-blue)" />
+				<path d="M160 88 v24 M148 100 h24" stroke="#fff" stroke-width="4" />
+			</g>
+		)
+	}
+	{
+		art === 'genre' && (
+			<g>
+				{Array.from({ length: 22 }, (_, i) => {
+					const h = 20 + Math.abs(Math.sin(i * 1.7) * 70) + (i % 3) * 8;
+					return <rect x={36 + i * 11.5} y={110 - h / 2} width="6" height={h} rx="3" fill="var(--c-purple)" opacity={0.45 + (i % 4) * 0.15} />;
+				})}
+				<g stroke="var(--text)" stroke-width="3" fill="var(--surface)">
+					<rect x="200" y="148" width="92" height="30" rx="15" />
+				</g>
+				<text x="246" y="168" text-anchor="middle" font-family="ui-monospace, monospace" font-size="13" fill="var(--text)">jazz? 87%</text>
+			</g>
+		)
+	}
+	{
+		art === 'geo' && (
+			<g stroke="var(--text)" stroke-width="3">
+				<path d="M70 70 L120 50 L190 52 L250 70 L262 110 L240 150 L190 165 L120 160 L80 140 L60 105 Z" fill="var(--surface)" stroke-dasharray="6 6" />
+				{[
+					[120, 95, 'var(--c-coral)'],
+					[180, 120, 'var(--c-blue)'],
+					[215, 85, 'var(--c-green)'],
+					[100, 130, 'var(--c-purple)'],
+				].map(([x, y, c]) => (
+					<path d={`M${x} ${y} c 0 -16 22 -16 22 0 c 0 10 -11 20 -11 20 s -11 -10 -11 -20 z`} fill={c as string} />
+				))}
+				<path d="M30 30 h70 a10 10 0 0 1 10 10 v20 a10 10 0 0 1 -10 10 h-50 l-12 10 v-10 h-8 a10 10 0 0 1 -10 -10 v-20 a10 10 0 0 1 10 -10 z" fill="var(--surface)" class="bob" />
+				<path d="M42 46 h50 M42 56 h32" stroke-width="2.5" />
+			</g>
+		)
+	}
+	{
+		art === 'newsletter' && (
+			<g stroke="var(--text)" stroke-width="3">
+				<rect x="80" y="55" width="160" height="105" rx="10" fill="var(--surface)" />
+				<path d="M80 62 L160 118 L240 62" />
+				<rect x="132" y="22" width="56" height="62" rx="4" fill="#fff" class="bob" />
+				<text x="160" y="64" text-anchor="middle" font-family="Georgia, serif" font-size="30" fill="var(--text)" stroke="none">W</text>
+			</g>
+		)
+	}
+	{
+		art === 'songbinator' && (
+			<g stroke="var(--text)" stroke-width="3">
+				<g class="spin" style="transform-origin: 115px 100px">
+					<circle cx="115" cy="100" r="58" fill="#24222b" />
+					<circle cx="115" cy="100" r="40" stroke="#555" stroke-width="1.5" />
+					<circle cx="115" cy="100" r="16" fill="var(--c-coral)" />
+				</g>
+				<g class="spin" style="transform-origin: 205px 100px">
+					<circle cx="205" cy="100" r="58" fill="#24222b" />
+					<circle cx="205" cy="100" r="40" stroke="#555" stroke-width="1.5" />
+					<circle cx="205" cy="100" r="16" fill="var(--c-yellow)" />
+				</g>
+				<circle cx="160" cy="100" r="16" fill="var(--surface)" />
+				<path d="M160 92 v16 M152 100 h16" stroke-width="3.5" />
+			</g>
+		)
+	}
+</svg>
+
+<style>
+	.art {
+		display: block;
+		width: 100%;
+		height: 100%;
+	}
+	.bob {
+		animation: bob 3s ease-in-out infinite;
+	}
+	.spin {
+		animation: spin 8s linear infinite;
+	}
+	@keyframes bob {
+		50% {
+			translate: 0 -5px;
+		}
+	}
+	@keyframes spin {
+		to {
+			rotate: 360deg;
+		}
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.bob,
+		.spin {
+			animation: none;
+		}
+	}
+</style>

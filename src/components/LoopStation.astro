@@ -1,0 +1,126 @@
+---
+// A playful nod to the Boss RC-500: tap a track to "record" a loop and watch it play.
+const tracks = [
+	{ name: 'Track 1', label: 'Guitar', colour: 'coral' },
+	{ name: 'Track 2', label: 'Vocals', colour: 'teal' },
+	{ name: 'Rhythm', label: 'Beat', colour: 'green' },
+];
+const bars = Array.from({ length: 16 }, (_, i) => i);
+---
+
+<div class="pedal">
+	<div class="pedal-top">
+		<span class="brand">RC-500 · loop station</span>
+		<span class="hint">tap a track ↓</span>
+	</div>
+	{
+		tracks.map((t) => (
+			<button class="track" type="button" aria-pressed="false" style={`--c: var(--c-${t.colour})`} data-loop-track>
+				<span class="led" aria-hidden="true" />
+				<span class="name">
+					<strong>{t.label}</strong>
+					<small>{t.name}</small>
+				</span>
+				<span class="wave" aria-hidden="true">
+					{bars.map((i) => (
+						<i style={`--d: ${(i * 37) % 11}`} />
+					))}
+				</span>
+			</button>
+		))
+	}
+</div>
+
+<script>
+	document.querySelectorAll<HTMLButtonElement>('[data-loop-track]').forEach((btn) => {
+		btn.addEventListener('click', () => {
+			btn.setAttribute('aria-pressed', String(btn.getAttribute('aria-pressed') !== 'true'));
+		});
+	});
+</script>
+
+<style>
+	.pedal {
+		background: linear-gradient(160deg, #2b2b31, #17171b);
+		color: #eee;
+		border-radius: 18px;
+		padding: 1rem;
+		display: grid;
+		gap: 0.6rem;
+		box-shadow: var(--shadow);
+	}
+	.pedal-top {
+		display: flex;
+		justify-content: space-between;
+		font-size: 0.75rem;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: #aaa;
+	}
+	.track {
+		display: grid;
+		grid-template-columns: auto 5.5rem 1fr;
+		align-items: center;
+		gap: 0.8rem;
+		padding: 0.6rem 0.8rem;
+		border-radius: 12px;
+		border: 1px solid #3a3a42;
+		background: #222228;
+		color: inherit;
+		font: inherit;
+		text-align: left;
+		cursor: pointer;
+	}
+	.track:hover {
+		border-color: var(--c);
+	}
+	.led {
+		width: 0.7rem;
+		height: 0.7rem;
+		border-radius: 50%;
+		background: #444;
+	}
+	[aria-pressed='true'] .led {
+		background: var(--c);
+		box-shadow: 0 0 10px var(--c);
+	}
+	.name {
+		display: grid;
+		line-height: 1.2;
+	}
+	.name small {
+		color: #999;
+		font-size: 0.72rem;
+	}
+	.wave {
+		display: flex;
+		align-items: center;
+		gap: 3px;
+		height: 1.8rem;
+	}
+	.wave i {
+		flex: 1;
+		height: 15%;
+		border-radius: 2px;
+		background: #444;
+	}
+	[aria-pressed='true'] .wave i {
+		background: var(--c);
+		animation: bounce 0.9s ease-in-out infinite alternate;
+		animation-delay: calc(var(--d) * -0.09s);
+	}
+	@keyframes bounce {
+		from {
+			height: 15%;
+		}
+		to {
+			height: 100%;
+		}
+	}
+	@media (prefers-reduced-motion: reduce) {
+		[aria-pressed='true'] .wave i {
+			animation: none;
+			height: calc(20% + var(--d) * 7%);
+		}
+	}
+</style>
