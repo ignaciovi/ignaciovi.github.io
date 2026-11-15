@@ -2,7 +2,7 @@
 // TODO: replace placeholder values (marked TODO) before launch.
 export const SITE = {
 	url: 'https://ignaciovi.github.io',
-	name: 'Ignacio Valdelvira',
+	name: 'Ignacio Valdelvira Isla',
 	role: 'Data Engineer',
 	location: 'London, UK',
 	description:
