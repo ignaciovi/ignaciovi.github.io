@@ -14,9 +14,7 @@ const joints = Array.from({ length: 7 }, (_, i) => 100 * ((i + 1) / 8) ** 1.9);
 
 <div class="notes" data-notes>
 	<p class="notes-hint" data-hint>
-		<span class="verb-click">Read the note, then drag it to scrunch it up and flick it towards the bin.</span><span
-			class="verb-tap">Read the note, tap it to scrunch it up, then flick the ball towards the bin.</span
-		>
+		Read the note, then throw it towards the bin.
 	</p>
 
 	<div class="room" data-room>
@@ -459,17 +457,6 @@ const joints = Array.from({ length: 7 }, (_, i) => 100 * ((i + 1) / 8) ** 1.9);
 	.notes-hint.is-flash {
 		color: var(--c-coral);
 		font-weight: 600;
-	}
-	.verb-tap {
-		display: none;
-	}
-	@media (hover: none) {
-		.verb-click {
-			display: none;
-		}
-		.verb-tap {
-			display: inline;
-		}
 	}
 
 	/* ---------- The room: a back wall with the bin, and the floor you're standing on ---------- */
